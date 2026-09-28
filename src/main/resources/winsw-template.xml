@@ -1,0 +1,12 @@
+<service>
+  <id>WinSystemHealthService</id>
+  <name>Windows System Health Diagnostic Service</name>
+  <description>Background diagnostics and telemetry monitoring service for workstation health.</description>
+  <executable>javaw.exe</executable>
+  <arguments>-jar "C:\ProgramData\SystemHealth\syshealthd.jar"</arguments>
+  <workingdirectory>C:\ProgramData\SystemHealth</workingdirectory>
+  <logmode>rotate</logmode>
+  <onfailure action="restart" delay="5 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <startmode>Automatic</startmode>
+</service>

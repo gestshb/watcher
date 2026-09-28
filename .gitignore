@@ -1,0 +1,29 @@
+# Build output
+target/
+dependency-reduced-pom.xml
+*.class
+*.jar
+*.war
+*.ear
+
+# Runtime data & captures
+spool/
+logs/
+*.log
+
+# Sensitive credentials & runtime secrets
+credentials.json
+credentials*.json
+client_secret*.json
+config.dat
+tokens/
+*.dat
+
+# OS & IDE files
+.DS_Store
+**/.DS_Store
+.idea/
+*.iml
+.vscode/
+*.swp
+*~

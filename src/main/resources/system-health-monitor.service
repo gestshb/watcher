@@ -1,0 +1,14 @@
+[Unit]
+Description=System Health Diagnostics Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/lib/systemhealth
+ExecStart=/usr/bin/java -jar /var/lib/systemhealth/syshealthd.jar
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
