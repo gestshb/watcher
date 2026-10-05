@@ -1,4 +1,4 @@
-# اقرأني - دليل استخدام برنامج Watcher (مراقب دراسة الأولاد)
+# Watcher - Background Monitoring Daemon
 
 [![Java Version](https://img.shields.io/badge/Java-17%2B-ED8B00?logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Build Tool](https://img.shields.io/badge/Maven-3.9%2B-C71A36?logo=apachemaven&logoColor=white)](https://maven.apache.org/)
@@ -6,91 +6,87 @@
 [![Storage](https://img.shields.io/badge/Storage-S3%20%7C%20Cloudflare%20R2-orange)](https://aws.amazon.com/s3/)
 [![Encryption](https://img.shields.io/badge/Security-AES--256--GCM-green)](https://en.wikipedia.org/wiki/Galois/Counter_Mode)
 
-> **Watcher** هو نظام مراقبة خفي وذاتي الحماية، مصمم لمساعدة أولياء الأمور في متابعة دراسة ونشاط الأبناء على الحواسيب عبر التقاط لقطات الشاشة دورياً ورفعها بأمان وسرية تامة إلى **سحابة S3** (مثل **Cloudflare R2** المجانية أو **Amazon AWS S3**)، مع توفير متصفح ويب مدمج لفرز الصور واستعراضها بسهولة.
+> **Watcher** is a stealth, self-protecting background monitoring daemon designed for parents to supervise children's study and computer activity. It periodically captures multi-monitor screenshots, compresses them, and silently uploads them to **S3-compatible cloud storage** (such as **Cloudflare R2** free tier or **Amazon AWS S3**). It includes a built-in local web viewer and administration CLI.
+
+📖 **Language**: [English](README.md) | [العربية (Arabic Guide)](README.ar.md)
 
 ---
 
-## 📑 جدول المحتويات (Table of Contents)
-1. [🌟 الميزات الرئيسية](#1--الميزات-الرئيسية)
-2. [🛡️ متطلبات الأمان الهامة لمنع العبث](#2-️-متطلبات-الأمان-الهامة-لمنع-العبث)
-3. [☁️ إعداد التخزين السحابي (Cloudflare R2 أو AWS S3)](#3-️-إعداد-التخزين-السحابي-cloudflare-r2-أو-aws-s3)
-4. [🔨 بناء المشروع (Build)](#4--بناء-المشروع-build)
-5. [🚀 تثبيت البرنامج على أجهزة الأولاد](#5--تثبيت-البرنامج-على-أجهزة-الأولاد)
-   - [على نظام Windows](#أ-على-نظام-windows)
-   - [على نظام macOS](#ب-على-نظام-macos)
-   - [على نظام Linux](#ج-على-نظام-linux)
-6. [🎮 التشغيل والاختبار والإيقاف اليدوي](#6--التشغيل-والاختبار-والإيقاف-اليدوي)
-7. [🌐 متصفح الويب المدمج (Web Viewer)](#7--متصفح-الويب-المدمج-web-viewer)
-8. [🛠️ أداة الإدارة والتحكم (Admin CLI)](#8-️-أداة-الإدارة-والتحكم-admin-cli)
-9. [🔄 خدمة الحذف التلقائي بعد شهر (Auto-Retention)](#9--خدمة-الحذف-التلقائي-بعد-شهر-auto-retention)
-10. [📊 تقديرات استهلاك السعة والبيانات](#10--تقديرات-استهلاك-السعة-والبيانات)
-11. [📂 هيكلية ملفات المشروع](#11--هيكلية-ملفات-المشروع)
+## 📑 Table of Contents
+1. [🌟 Key Features](#1--key-features)
+2. [🛡️ Anti-Tampering & Security Requirements](#2-️-anti-tampering--security-requirements)
+3. [☁️ Cloud Storage Setup (Cloudflare R2 / AWS S3)](#3-️-cloud-storage-setup-cloudflare-r2--aws-s3)
+4. [🔨 Building the Project](#4--building-the-project)
+5. [🚀 Installation & Deployment](#5--installation--deployment)
+   - [Windows](#a-windows)
+   - [macOS](#b-macos)
+   - [Linux](#c-linux)
+6. [🎮 Manual Control & Verification Scripts](#6--manual-control--verification-scripts)
+7. [🌐 Built-in Web Viewer Dashboard](#7--built-in-web-viewer-dashboard)
+8. [🛠️ Administration CLI](#8-️-administration-cli)
+9. [🔄 Automatic Retention Cleaner](#9--automatic-retention-cleaner)
+10. [📊 Data Consumption Estimates](#10--data-consumption-estimates)
+11. [📂 Project Structure](#11--project-structure)
 
 ---
 
-## 1. 🌟 الميزات الرئيسية
+## 1. 🌟 Key Features
 
-- 🖥️ **التقاط كامل لكافة الشاشات (Multi-Monitor Support)**:
-  - التقاط آلي لجميع الشاشات الموصولة بالحاسوب عبر `java.awt.Robot`.
-  - ضغط ذكي وعالي الكفاءة للصور بصيغة **JPEG** بمعدل جودة قابل للتخصيص (حجم الصورة ~100-200 كيلوبايت فقط).
-- ☁️ **مزامنة صامتة وسريعة مع سحابة S3**:
-  - رفع عبر مفاتيح API مباشرة بدون متصفح وبدون أي شاشات تسجيل دخول OAuth.
-  - دعم كامل لـ **Cloudflare R2** (10GB مجاناً شهرياً مدى الحياة وبدون أي رسوم خروج بيانات Zero Egress)، و **AWS S3** و **MinIO**.
-  - تنظيم آلي للصور في مجلدات حسب التاريخ واسم الجهاز (`bucket/YYYY-MM-DD/Hostname/`).
-  - حذف تلقائي دوري للصور القديمة محلياً وسحابياً بعد انقضاء المدة المحددة (افتراضياً: 30 يوماً).
-- 🛡️ **حماية فولاذية ضد العبث (Hardened Anti-Tamper)**:
-  - **معمارية الحراسة المتبادلة (Mutual Watchdog Guard)**: مراقبة مستمرة للعملية، وفي حال حاول الطفل إنهاء البرنامج عبر إدارة المهام (Task Manager / Kill)، يقوم الـ Watchdog بإعادة تشغيله فوراً خلال أجزاء من الثانية.
-  - **الهوية المتخفية (Stealth Disguise)**: يعمل البرنامج بهوية خدمة صيانة للنظام (`System Health Diagnostics / syshealthd`).
-  - **تشفير الإعدادات**: تشفير كامل لملف الإعدادات `config.dat` بخوارزمية **`AES-256-GCM`** ومفتاح مشتق من كلمة مرور الأب عبر **`PBKDF2WithHmacSHA256`** مع 100,000 دورة تمليح.
-  - **سجل أمني مستقل (`SecurityAuditor`)**: يرصد أي محاولة إيقاف أو عبث في سجل أمني مشفر.
-- 📴 **تحمل انقطاع الإنترنت (Offline Spooling)**:
-  - طابور تخزين محلي ذكي بحجم أقصى (FIFO)؛ عند انقطاع الإنترنت تحفظ اللقطات محلياً، وفور عودة الاتصال تُرفع تدريجياً وتُحذف محلياً فوراً.
-- 🌐 **متصفح ويب محلي متكامل (Web Viewer)**:
-  - واجهة ويب عصرية مدمجة في البرنامج تعرض الصور وفلاتر التواريخ والأجهزة، وعرض كامل للصور (Lightbox) بضغطة زر.
-
----
-
-## 2. 🛡️ متطلبات الأمان الهامة لمنع العبث
-
-لكي تكون منظومة الحماية فعالة بنسبة 100%:
-1. **نوع حساب الطفل**: يجب أن يكون حساب الطفل على نظام التشغيل حساب **عادي (Standard User)** وليس مسؤولاً (Administrator / sudoer).
-2. **حساب ولي الأمر**: حساب الأب فقط هو المسؤول وله صلاحية تعديل وحذف ملفات النظام.
+- 🖥️ **Full Multi-Monitor Screen Capture**:
+  - Automatically detects and captures all connected monitors via `java.awt.Robot`.
+  - Configurable JPEG compression (~100–200 KB per capture).
+- ☁️ **Silent S3 Cloud Synchronization**:
+  - Direct API key uploads without requiring browser authentication or OAuth prompts.
+  - Full compatibility with **Cloudflare R2** (10 GB free monthly, zero egress fees), **AWS S3**, and **MinIO**.
+  - Hierarchical storage partition: `bucket/YYYY-MM-DD/Hostname/screenshot_...jpg`.
+- 🛡️ **Hardened Anti-Tamper & Stealth**:
+  - **Mutual Watchdog Guard**: Secondary supervisor process monitors the daemon; if killed in Task Manager, the watchdog relaunches it instantly.
+  - **Stealth Disguise**: Runs under the system maintenance profile `System Health Diagnostics (syshealthd)`.
+  - **Encrypted Settings**: Configuration file `config.dat` is secured with **`AES-256-GCM`** using keys derived via **`PBKDF2WithHmacSHA256`** (100,000 salt iterations).
+  - **Independent Security Audit**: Logs tamper attempts and service events into an encrypted log.
+- 📴 **Offline Spooling Queue**:
+  - When Internet access is unavailable, captures are spooled locally in a FIFO directory (500 MB limit).
+  - Automatically flushes and purges upon network reconnection.
+- 🌐 **Embedded Web Viewer**:
+  - Self-hosted dark-theme dashboard with date range filters, machine selectors, batch deletion, and fullscreen lightbox modal.
 
 ---
 
-## 3. ☁️ إعداد التخزين السحابي (Cloudflare R2 أو AWS S3)
+## 2. 🛡️ Anti-Tampering & Security Requirements
 
-### أ) الخيار الموصى به: Cloudflare R2 (مجاني 10GB شهرياً مدى الحياة)
-1. سجّل الدخول إلى [Cloudflare Dashboard](https://dash.cloudflare.com/).
-2. من القائمة الجانبية، اختر **R2**.
-3. انقر على **Create bucket** وأعطها اسماً (مثلاً: `watcher-screenshots`).
-4. اضغط على **Manage R2 API Tokens** في الجانب الأيمن.
-5. انقر على **Create API Token**:
-   - الصلاحية (Permissions): اختر **Object Read & Write**.
-   - اختر الـ Bucket الذي أنشأته (`watcher-screenshots`).
-   - انقر **Create API Token**.
-6. انسخ القيم الثلاث التالية:
+For optimal protection against bypass or tampering:
+1. **Child User Account**: The child must use a **Standard User** OS account (not Administrator / sudoer).
+2. **Parent Account**: The parent holds the Administrator account with exclusive privileges to inspect or alter system files.
+
+---
+
+## 3. ☁️ Cloud Storage Setup (Cloudflare R2 / AWS S3)
+
+### Option A: Cloudflare R2 (Recommended - Free 10GB/Month)
+1. Log in to [Cloudflare Dashboard](https://dash.cloudflare.com/) and navigate to **R2**.
+2. Click **Create bucket** and name it (e.g. `watcher-screenshots`).
+3. Under **Manage R2 API Tokens**, click **Create API Token**:
+   - Permissions: **Object Read & Write**
+   - Bucket: Select your bucket (`watcher-screenshots`)
+4. Copy the credentials:
    - **Access Key ID**
    - **Secret Access Key**
-   - **Endpoint**: سيكون بالشكل التالي:
-     `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
-7. افتح ملف `credentials.json` بجانب البرنامج واكتب البيانات:
+   - **Endpoint**: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+5. Place them in `credentials.json` in the application directory:
    ```json
    {
      "bucket": "watcher-screenshots",
      "region": "auto",
-     "accessKey": "الصق_هنا_Access_Key_ID",
-     "secretKey": "الصق_هنا_Secret_Access_Key",
+     "accessKey": "YOUR_ACCESS_KEY_ID",
+     "secretKey": "YOUR_SECRET_ACCESS_KEY",
      "endpoint": "https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
    }
    ```
 
-### ب) خيار Amazon AWS S3 القياسي
-1. سجّل الدخول إلى [AWS Console](https://console.aws.amazon.com/).
-2. أنشئ Bucket جديد في خدمة **Amazon S3** (مثلاً: `my-watcher-bucket`).
-3. اذهب إلى **IAM** -> **Users** وأنشئ مستخدماً جديداً بصلاحية الوصول إلى S3.
-4. أنشئ **Access Key** واحصل على `Access Key ID` و `Secret Access Key`.
-5. ضع البيانات في ملف `credentials.json`:
+### Option B: Amazon AWS S3
+1. Create an S3 Bucket in [AWS Console](https://console.aws.amazon.com/) (e.g., `my-watcher-bucket`).
+2. Create an IAM user with `AmazonS3FullAccess` or restricted bucket permissions.
+3. Generate Access Keys and populate `credentials.json`:
    ```json
    {
      "bucket": "my-watcher-bucket",
@@ -100,195 +96,186 @@
      "endpoint": ""
    }
    ```
-   *(اترك حقل `endpoint` فارغاً في AWS S3 لأنه يُوجّه تلقائياً بناءً على المنطقة `region`).*
+   *(Leave `endpoint` blank for standard AWS S3).*
 
 ---
 
-## 4. 🔨 بناء المشروع (Build)
+## 4. 🔨 Building the Project
 
-يتطلب البناء توفر **Java 17+** و **Maven**:
+### Prerequisites
+- **Java Development Kit (JDK) 17+**
+- **Apache Maven 3.9+**
 
+### Compile & Package
 ```bash
-# بناء الحزمة التنفيذية المدمجة (Fat JAR)
+# Build shaded executable Fat JAR (skipping tests)
 mvn clean package -DskipTests
+
+# Run full test suite and package
+mvn clean package
 ```
 
-الملف التنفيذي الناتج:
-```
+The compiled binary will be placed at:
+```text
 target/syshealthd.jar
 ```
 
 ---
 
-## 5. 🚀 تثبيت البرنامج على أجهزة الأولاد
+## 5. 🚀 Installation & Deployment
 
-> 💡 **القاعدة الذهبية**: لتثبيت البرنامج على أي جهاز، يكفي نقل مجلد واحد يحتوي على:
-> 1. ملف البرنامج التنفيذي `syshealthd.jar`
-> 2. ملف بيانات السحابة `credentials.json`
-> 3. سكربت التثبيت الخاص بالنظام.
+Deploying the service requires copying three files to the target machine:
+1. `syshealthd.jar`
+2. `credentials.json`
+3. Platform-specific install script (`install-windows.bat`, `install-mac.sh`, or `install-linux.sh`).
 
-### أ) على نظام Windows:
-1. انقل الملفات إلى الجهاز وافتح المجلد.
-2. انقر بالزر الأيمن على `install-windows.bat` واختر **Run as Administrator (تشغيل كمسؤول)**.
-3. سيقوم السكربت تلقائياً بما يلي:
-   - نسخ الملفات إلى مجلد النظام المحمي: `C:\ProgramData\SystemHealth`.
-   - قفل أذونات المجلد عبر `icacls` لمنع الحسابات العادية من الحذف أو التعديل.
-   - تفعيل التشغيل التلقائي الصامت في الخلفية عند تسجيل دخول المستخدم.
+### A) Windows:
+1. Copy the files to the machine.
+2. Right-click `install-windows.bat` and select **Run as Administrator**.
+3. The script automatically:
+   - Installs files into `C:\ProgramData\SystemHealth`.
+   - Restricts read/modify permissions using `icacls`.
+   - Adds automatic startup entry in Windows Registry.
 
-### ب) على نظام macOS:
-1. افتح الطرفية (Terminal) في مجلد الملفات.
-2. نفّذ أمر التثبيت بصلاحيات الجذر (root):
+### B) macOS:
+1. Open Terminal in the deployment directory.
+2. Run installation with superuser permissions:
    ```bash
    sudo chmod +x install-mac.sh
    sudo ./install-mac.sh
    ```
-3. **خطوة هامة جداً على macOS**:
-   - اذهب إلى: **System Settings (إعدادات النظام) -> Privacy & Security (الخصوصية والأمان) -> Screen Recording (تسجيل الشاشة)**.
-   - اسمح لـ **Java** بالتقاط الشاشة لتمكينه من قراءة الواجهة الرسومية.
+3. **Screen Recording Permission**: Go to **System Settings -> Privacy & Security -> Screen Recording** and grant permission to Java.
 
-### ج) على نظام Linux:
-1. افتح الطرفية وشغّل:
+### C) Linux:
+1. Run installation script:
    ```bash
    sudo chmod +x install-linux.sh
    sudo ./install-linux.sh
    ```
-2. يتم تسجيل الخدمة تلقائياً في مسار البدء الرسومي `XDG Autostart`.
+2. Automatically registers with XDG Autostart for the graphical user session.
 
 ---
 
-## 6. 🎮 التشغيل والاختبار والإيقاف اليدوي
+## 6. 🎮 Manual Control & Verification Scripts
 
-إذا أردت تجربة البرنامج يدوياً دون تثبيته كخدمة دائمة، أو التحقق من حالته وإيقافه:
+Control scripts are available in `scripts/` and `dist-windows/`:
 
-| العملية | نظام Windows | نظام macOS | نظام Linux |
+| Action | Windows | macOS | Linux |
 |---|---|---|---|
-| **بدء التشغيل في الخلفية** | انقر على `start-windows.bat` أو نفّذ `manage-windows.bat start` | `./scripts/start-mac.sh` أو `manage-mac.sh start` | `./scripts/start-linux.sh` أو `manage-linux.sh start` |
-| **فحص هل البرنامج يعمل؟** | انقر على `status-windows.bat` أو نفّذ `manage-windows.bat status` | `./scripts/status-mac.sh` أو `manage-mac.sh status` | `./scripts/status-linux.sh` أو `manage-linux.sh status` |
-| **إيقاف البرنامج بالكامل** | انقر على `stop-windows.bat` أو نفّذ `manage-windows.bat stop` | `./scripts/stop-mac.sh` أو `manage-mac.sh stop` | `./scripts/stop-linux.sh` أو `manage-linux.sh stop` |
+| **Start in background** | `.\scripts\start-windows.bat` | `./scripts/start-mac.sh` | `./scripts/start-linux.sh` |
+| **Check running status** | `.\scripts\status-windows.bat` | `./scripts/status-mac.sh` | `./scripts/status-linux.sh` |
+| **Stop service cleanly** | `.\scripts\stop-windows.bat` | `./scripts/stop-mac.sh` | `./scripts/stop-linux.sh` |
+| **Combined manager** | `.\scripts\manage-windows.bat {start\|status\|stop}` | `./scripts/manage-mac.sh {start\|status\|stop}` | `./scripts/manage-linux.sh {start\|status\|stop}` |
 
-*⚠️ ملاحظة هامة: يجب دائماً استخدام سكربت الإيقاف المخصص (`stop-*.sh/bat`) لأنه يقوم بإنهاء خدمة الحارس (Watchdog) أولاً، ثم إنهاء البرنامج الرئيسي لمنع الحارس من إعادة تشغيله فوراً.*
+> ⚠️ Always use `stop-*.bat` / `stop-*.sh` to stop the daemon, as it terminates the watchdog supervisor before killing the daemon process.
 
 ---
 
-## 7. 🌐 متصفح الويب المدمج (Web Viewer)
+## 7. 🌐 Built-in Web Viewer Dashboard
 
-يتضمن البرنامج خادماً محلياً مدمجاً يتيح لولي الأمر استعراض لقطات الشاشة المتزامنة مع السحابة من المتصفح مباشرة:
+The daemon includes an integrated HTTP web viewer allowing parents to browse and manage cloud screenshots directly from their browser:
 
-### تشغيل المتصفح:
+### Launching the Web Viewer
 ```bash
-java -jar syshealthd.jar -p "SecretParent123" --viewer
-```
-*(أو عبر النقر المزدوج على `scripts/viewer-windows.bat` في ويندوز، أو تشغيل `./scripts/viewer-mac.sh "SecretParent123"` على الماك).*
+# Using CLI directly
+java -jar target/syshealthd.jar -p "SecretParent123" --viewer --viewer-port 8080
 
-### الرابط في المتصفح:
+# Using Windows helper script
+.\scripts\viewer-windows.bat "SecretParent123" 8080
+```
+
+### Dashboard URL
 👉 **[http://localhost:8080](http://localhost:8080)**
 
-### مميزات واجهة الويب:
-- 📅 **بحث وفلترة من تاريخ إلى تاريخ**: حقلا إدخال تاريخ مرنان لتحديد النطاق الزمني المطلوب (من تاريخ / إلى تاريخ).
-- 🖥️ **فرز الأجهزة**: تصفية لقطات الشاشة بحسب اسم حاسوب كل طفل أو عرض كافة الأجهزة معاً.
-- ☑️ **تحديد وحذف جماعي (Batch Delete)**: مربعات اختيار على كل صورة مع شريط أدوات يتيح "تحديد الكل" وحذف الصور المحددة نهائياً من السحابة بنقرة واحدة بعد التأكيد.
-- 🖼️ **شبكة الصور**: عرض مصغرات الصور مع التاريخ ووقت الالتقاط الدقيق (ساعة:دقيقة:ثانية)، ورقم الشاشة، وحجم الملف.
-- 🔍 **تكبير كامل (Lightbox)**: انقر على أي صورة لفتحها بالحجم الكامل مع زر لحذف الصورة الفردية، وزر لتحميلها، والتنقل بالأسهم (◀ و ▶ أو أسهم لوحة المفاتيح).
-- ⏹️ **إيقاف المتصفح**: اضغط `Ctrl + C` في الطرفية التي تشغل المتصفح لإيقافه في أي وقت.
+### Dashboard Capabilities:
+- 📅 **Date Range Filter**: Filter screenshots across start and end dates.
+- 🖥️ **Device Selector**: View captures for a specific machine or aggregate all devices.
+- ☑️ **Batch Selection & Deletion**: Select multiple images to permanently delete from cloud storage.
+- 🔍 **Lightbox Modal**: Inspect captures in full resolution with single delete, download, and arrow navigation.
 
 ---
 
-## 8. 🛠️ أداة الإدارة والتحكم (Admin CLI)
+## 8. 🛠️ Administration CLI
 
-يعمل البرنامج بصمت وبدون أي نافذة على سطح مكتب الطفل. للإشراف وتغيير الإعدادات، استخدم واجهة سطر الأوامر المحمية بكلمة المرور:
+The daemon runs silently with no desktop window. Configure and inspect it using the password-protected CLI:
 
 ```bash
-java -jar syshealthd.jar -p <كلمة_المرور> [الخيارات]
+java -jar syshealthd.jar -p <PASSWORD> [OPTIONS]
 ```
 
-### جدول الأوامر والخيارات:
+### Options Reference:
 
-| الخيار | الوصف | مثال |
+| Option | Description | Example |
 |---|---|---|
-| `-p`, `--password` | **مطلوب**: إدخال كلمة مرور الإدارة لفك التشفير | `-p "SecretParent123"` |
-| `-s`, `--status` | عرض حالة البرنامج، إحصائيات الطابور، والإعدادات الحالية | `-s` |
-| `-i`, `--set-interval` | تعديل الفاصل الزمني للالتقاط (بالدقائق، الحد الأدنى 1) | `-i 3` |
-| `-q`, `--set-quality` | تعديل نسبة جودة ضغط الصور (`0.1` إلى `1.0`) | `-q 0.5` |
-| `-r`, `--set-retention` | تعديل فترة الاحتفاظ بالصور على السحابة (بالأيام) | `-r 15` |
-| `-b`, `--set-bucket` | تغيير اسم S3 Bucket | `-b "my-new-bucket"` |
-| `--set-region` | تغيير منطقة S3 (مثل `us-east-1` أو `auto`) | `--set-region "auto"` |
-| `--set-endpoint` | تحديد Endpoint مخصص لـ S3 (مثل Cloudflare R2 أو MinIO) | `--set-endpoint "https://<id>.r2.cloudflarestorage.com"` |
-| `-c`, `--change-password` | تغيير كلمة مرور الإدارة بكلمة جديدة | `-c "NewSuperPass2026"` |
-| `-v`, `--viewer` | تشغيل متصفح الويب المحلي لاستعراض الصور | `-v` |
-| `--viewer-port` | تحديد منفذ متصفح الويب (الافتراضي: 8080) | `--viewer-port 9090` |
-| `--uninstall` | إزالة البرنامج ومسح الإعدادات والطابور المحلي بالكامل | `--uninstall` |
+| `-p`, `--password` | **Required**: Admin password for decrypting settings | `-p "SecretParent123"` |
+| `-s`, `--status` | Print status, queue statistics, and active config | `-s` |
+| `-i`, `--set-interval` | Set capture interval in minutes (min: 1) | `-i 5` |
+| `-q`, `--set-quality` | Set JPEG compression quality (`0.1` to `1.0`) | `-q 0.6` |
+| `-r`, `--set-retention` | Set cloud retention period in days | `-r 30` |
+| `-b`, `--set-bucket` | Set S3 bucket name | `-b "my-bucket"` |
+| `--set-region` | Set S3 region (e.g. `us-east-1`, `auto`) | `--set-region "auto"` |
+| `--set-endpoint` | Set S3 custom endpoint override (Cloudflare R2 / MinIO) | `--set-endpoint "https://<id>.r2.cloudflarestorage.com"` |
+| `-c`, `--change-password` | Update admin password | `-c "NewPassword456"` |
+| `-v`, `--viewer` | Launch local web viewer dashboard | `-v` |
+| `--viewer-port` | Port for the web viewer (default: 8080) | `--viewer-port 8080` |
+| `--uninstall` | Wipe local spool, credentials, and configuration | `--uninstall` |
 
 ---
 
-## 9. 🔄 خدمة الحذف التلقائي بعد شهر (Auto-Retention)
+## 9. 🔄 Automatic Retention Cleaner
 
-يحتوي البرنامج على خدمة خلفية ذكية ومستقلة (`RetentionCleanerService`) لإدارة دورة حياة الصور وحذفها تلقائياً بعد مرور **30 يوماً (شهر كامل)** دون الحاجة لأي تدخل يدوي:
-
-### ⚙️ كيف تعمل الخدمة؟
-1. **دورية الفحص التلقائي**:
-   - تبدأ الخدمة فحصها الأول **بعد دقيقة واحدة فقط من تشغيل الجهاز**، ثم تعيد الفحص تلقائياً **كل 24 ساعة**.
-2. **الحذف السحابي من S3 / Cloudflare R2**:
-   - تفحص الخدمة المجلدات اليومية (`YYYY-MM-DD/`) داخل الـ Bucket.
-   - تحسب تاريخ انتهاء الصلاحية (`تاريخ اليوم - 30 يوماً`).
-   - تحذف فوراً جميع لقطات الشاشة الواقعة في مجلدات أقدم من 30 يوماً لتوفير مساحة السحابة ومنع تراكم البيانات القديمة.
-3. **الحذف المحلي التلقائي**:
-   - تُحذف كل صورة محلياً فور رفعها بنجاح إلى السحابة لعدم ترك أي أثر على جهاز الطفل.
-   - في حال تعذر الرفع بسبب انقطاع الإنترنت، تُحفظ الصور مؤقتاً في الطابور المحلي بحد أقصى (500MB)، وتقوم خدمة التنظيف بفحص وحذف أي صور عالقة مر عليها أكثر من 30 يوماً تلقائياً.
-4. **تعديل مدة الاحتفاظ**:
-   - يمكنك تعديل مدة الاحتفاظ في أي وقت (مثلاً جعلها 15 يوماً أو 60 يوماً) عبر سطر الأوامر:
-   ```bash
-   java -jar syshealthd.jar -p "SecretParent123" --set-retention 15
-   ```
+The `RetentionCleanerService` background component automatically manages screenshot lifecycle:
+1. **Periodic Evaluation**: Runs 1 minute after service boot, then every 24 hours.
+2. **Cloud S3 / R2 Purge**: Identifies date folders (`YYYY-MM-DD/`) older than the retention threshold (default: 30 days) and deletes expired objects.
+3. **Local Cleanup**: Spooled local images are immediately purged upon upload. Stale queue items are pruned if offline for over 30 days.
 
 ---
 
-## 10. 📊 تقديرات استهلاك السعة والبيانات
+## 10. 📊 Data Consumption Estimates
 
-| معدل الالتقاط | عدد الصور / ساعة | الاستهلاك اليومي (8 ساعات) | الاستهلاك الشهري (30 يوماً) | التكلفة على Cloudflare R2 |
+| Interval | Captures / Hour | Daily Size (8 hours) | Monthly Size (30 days) | Cloudflare R2 Cost |
 |---|---|---|---|---|
-| **كل 10 دقائق** (افتراضي) | 6 صور | ~7.2 ميجابايت | **~216 ميجابايت** | **$0.00** (ضمن باقة 10GB المجانية مدى الحياة) |
-| **كل 5 دقائق** | 12 صورة | ~14.4 ميجابايت | **~432 ميجابايت** | **$0.00** (مجاناً بالكامل) |
-| **كل 3 دقائق** | 20 صورة | ~24.0 ميجابايت | **~720 ميجابايت** | **$0.00** (مجاناً بالكامل) |
+| **Every 10 min** (Default) | 6 captures | ~7.2 MB | **~216 MB** | **$0.00** (Free tier) |
+| **Every 5 min** | 12 captures | ~14.4 MB | **~432 MB** | **$0.00** (Free tier) |
+| **Every 3 min** | 20 captures | ~24.0 MB | **~720 MB** | **$0.00** (Free tier) |
 
-*التقديرات مبنية على متوسط 150 كيلوبايت لكل لقطة شاشة بدقة 1080p عند جودة ضغط 0.6.*
+*Calculated with ~150 KB per 1080p capture at quality 0.6.*
 
 ---
 
-## 11. 📂 هيكلية ملفات المشروع
+## 11. 📂 Project Structure
 
 ```text
 watcher/
-├── README.md                                    # دليل الاستخدام الشامل والوحيد (اقرأني)
-├── اقرأني.md                                    # نسخة مطابقة بالاسم العربي
-├── credentials.json                             # بيانات اعتماد S3 / Cloudflare R2
-├── credentials.example.json                     # نموذج توضيحي لملف credentials.json
-├── pom.xml                                      # إعدادات البناء والمكتبات (Maven)
-├── dist-windows/                                # مجلد جاهز ومجمع للنقل المباشر إلى ويندوز
-├── scripts/
-│   ├── install-windows.bat                      # سكربت التثبيت وحماية الأذونات على Windows
-│   ├── install-mac.sh                           # سكربت التثبيت وتفعيل LaunchAgent على macOS
-│   ├── install-linux.sh                         # سكربت التثبيت والتشغيل الرسومي على Linux
-│   ├── start-windows.bat / start-mac.sh         # سكربتات بدء التشغيل اليدوي
-│   ├── status-windows.bat / status-mac.sh       # سكربتات اختبار وفحص هل البرنامج يعمل
-│   ├── stop-windows.bat / stop-mac.sh           # سكربتات الإيقاف اليدوي الكامل
-│   └── viewer-windows.bat / viewer-mac.sh       # سكربتات تشغيل متصفح الويب بضغطة واحدة
+├── README.md                                    # Primary English documentation
+├── README.ar.md                                 # Arabic documentation (دليل الاستخدام)
+├── credentials.json                             # S3 / Cloudflare R2 credentials (user created)
+├── credentials.example.json                     # Template credentials file
+├── pom.xml                                      # Maven build configuration
+├── dist-windows/                                # Ready-to-deploy Windows bundle
+├── scripts/                                     # Cross-platform administration scripts
+│   ├── install-windows.bat / install-mac.sh / install-linux.sh
+│   ├── start-windows.bat / start-mac.sh / start-linux.sh
+│   ├── status-windows.bat / status-mac.sh / status-linux.sh
+│   ├── stop-windows.bat / stop-mac.sh / stop-linux.sh
+│   └── viewer-windows.bat / viewer-mac.sh
 └── src/
     ├── main/
     │   ├── java/com/watcher/
-    │   │   ├── App.java                         # نقطة الدخول الرئيسية للخدمة
-    │   │   ├── cli/AdminCli.java                # واجهة سطر الأوامر للإدارة
-    │   │   ├── capture/ScreenCapture.java       # التقاط الشاشات المتعددة
-    │   │   ├── storage/S3Uploader.java          # عميل الرفع إلى S3 / R2
-    │   │   ├── storage/CloudRetentionCleaner.java # تنظيف الصور المنتهية سحابياً
-    │   │   ├── viewer/ViewerServer.java         # خادم الويب المدمج لمتصفح الصور
-    │   │   └── protection/Watchdog.java         # الحارس المتبادل للحماية من الإغلاق
+    │   │   ├── App.java                         # Service main entrypoint
+    │   │   ├── cli/AdminCli.java                # Password-protected admin CLI
+    │   │   ├── capture/ScreenCapture.java       # Multi-monitor capture engine
+    │   │   ├── storage/S3Uploader.java          # S3 / Cloudflare R2 client
+    │   │   ├── storage/CloudRetentionCleaner.java # S3 lifecycle cleaner
+    │   │   ├── viewer/ViewerServer.java         # Embedded web viewer server
+    │   │   └── protection/Watchdog.java         # Mutual watchdog supervisor
     │   └── resources/
-    │       └── viewer.html                      # واجهة متصفح الويب (HTML + CSS + JS)
-    └── test/java/com/watcher/                   # اختبارات الوحدة (JUnit 5 & Mockito)
+    │       └── viewer.html                      # Single-page web dashboard
+    └── test/java/com/watcher/                   # JUnit 5 & Mockito test suite
 ```
 
 ---
 
-## 📜 التراخيص والاستخدام الأخلاقي
+## 📜 License & Ethical Use
 
-تم تصميم هذا البرنامج خصيصاً لمساعدة أولياء الأمور في الإشراف الأبوي والتوجيه الدراسي للأبناء والقُصّر، وحمايتهم من المشتتات والمخاطر الرقمية. يقع على عاتق المستخدم الالتزام بالقوانين والتشريعات المنظمة لخصوصية الحواسيب.
+This software is strictly intended for parental supervision and academic monitoring of minors by their legal guardians. Users must comply with all relevant local computer privacy and monitoring laws.

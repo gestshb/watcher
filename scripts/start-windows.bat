@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 :: Watcher Start Script for Windows
 set SCRIPT_DIR=%~dp0
@@ -33,7 +33,7 @@ if %errorlevel% equ 0 (
     )
 )
 
-for /f "tokens=*" %%a in ('powershell -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' } | Measure-Object).Count"') do set PROC_COUNT=%%a
+for /f "tokens=*" %%a in ('powershell -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' } | Measure-Object).Count"') do set PROC_COUNT=%%a
 if not "%PROC_COUNT%"=="0" (
     echo ==========================================
     echo Watcher is already RUNNING.
@@ -47,4 +47,4 @@ for %%F in ("%JAR_PATH%") do cd /d "%%~dpF"
 start "" "%JAVA_CMD%" -jar "%JAR_PATH%"
 
 timeout /t 2 /nobreak >nul
-powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { Write-Host '=========================================='; Write-Host ' Watcher started successfully!'; Write-Host '=========================================='; $procs | Format-Table ProcessId, Name -AutoSize; exit 0 } else { Write-Host 'Error: Watcher failed to start.'; exit 1 }"
+powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { Write-Host '=========================================='; Write-Host ' Watcher started successfully.'; Write-Host '=========================================='; $procs | Format-Table ProcessId, Name -AutoSize; exit 0 } else { Write-Host 'Error: Watcher failed to start.'; exit 1 }"

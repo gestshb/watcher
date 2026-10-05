@@ -49,7 +49,7 @@ exit /b 1
 
 :do_start
 echo Checking if Watcher is already running...
-for /f "tokens=*" %%a in ('powershell -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' } | Measure-Object).Count"') do set PROC_COUNT=%%a
+for /f "tokens=*" %%a in ('powershell -NoProfile -Command "(Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' } | Measure-Object).Count"') do set PROC_COUNT=%%a
 if not "%PROC_COUNT%"=="0" (
     echo Watcher is already RUNNING.
     goto do_status
@@ -65,10 +65,10 @@ goto do_status
 
 :do_status
 echo Checking Watcher status...
-powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { Write-Host '=========================================='; Write-Host ' Watcher is RUNNING'; Write-Host '=========================================='; $procs | Format-Table ProcessId, Name, CommandLine -AutoSize; exit 0 } else { Write-Host '=========================================='; Write-Host ' Watcher is NOT running.'; Write-Host '=========================================='; exit 1 }"
+powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { Write-Host '=========================================='; Write-Host ' Watcher is RUNNING'; Write-Host '=========================================='; $procs | Format-Table ProcessId, Name, CommandLine -AutoSize; exit 0 } else { Write-Host '=========================================='; Write-Host ' Watcher is NOT running.'; Write-Host '=========================================='; exit 1 }"
 exit /b %errorlevel%
 
 :do_stop
 echo Stopping Watcher manually...
-powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 800; $rem = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*syshealthd.jar*' }; if (-not $rem) { Write-Host '=========================================='; Write-Host ' Watcher stopped successfully.'; Write-Host '=========================================='; exit 0 } else { Write-Host 'Warning: Some processes could not be stopped:'; $rem | Format-Table ProcessId, Name; exit 1 } } else { Write-Host '=========================================='; Write-Host ' Watcher is NOT running.'; Write-Host '=========================================='; exit 0 }"
+powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }; Start-Sleep -Milliseconds 800; $rem = Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' }; if (-not $rem) { Write-Host '=========================================='; Write-Host ' Watcher stopped successfully.'; Write-Host '=========================================='; exit 0 } else { Write-Host 'Warning: Some processes could not be stopped:'; $rem | Format-Table ProcessId, Name; exit 1 } } else { Write-Host '=========================================='; Write-Host ' Watcher is NOT running.'; Write-Host '=========================================='; exit 0 }"
 exit /b %errorlevel%
