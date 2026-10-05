@@ -15,7 +15,11 @@ public class AppConfig implements Serializable {
     private long maxSpoolSizeBytes = 500L * 1024L * 1024L; // 500 MB
     private boolean deleteAfterUpload = true;
 
-    private String driveFolderName = "WatcherScreenshots";
+    private String s3BucketName = "watcher-screenshots";
+    private String s3Region = "us-east-1";
+    private String s3AccessKey = "";
+    private String s3SecretKey = "";
+    private String s3Endpoint = "";
     private int retentionDays = 30;
     private String credentialsPath = "./credentials.json";
 
@@ -71,12 +75,54 @@ public class AppConfig implements Serializable {
         this.deleteAfterUpload = deleteAfterUpload;
     }
 
-    public String getDriveFolderName() {
-        return driveFolderName;
+    public String getS3BucketName() {
+        return s3BucketName;
     }
 
+    public void setS3BucketName(String s3BucketName) {
+        this.s3BucketName = Objects.requireNonNull(s3BucketName, "s3BucketName cannot be null");
+    }
+
+    public String getS3Region() {
+        return s3Region;
+    }
+
+    public void setS3Region(String s3Region) {
+        this.s3Region = Objects.requireNonNull(s3Region, "s3Region cannot be null");
+    }
+
+    public String getS3AccessKey() {
+        return s3AccessKey;
+    }
+
+    public void setS3AccessKey(String s3AccessKey) {
+        this.s3AccessKey = s3AccessKey != null ? s3AccessKey : "";
+    }
+
+    public String getS3SecretKey() {
+        return s3SecretKey;
+    }
+
+    public void setS3SecretKey(String s3SecretKey) {
+        this.s3SecretKey = s3SecretKey != null ? s3SecretKey : "";
+    }
+
+    public String getS3Endpoint() {
+        return s3Endpoint;
+    }
+
+    public void setS3Endpoint(String s3Endpoint) {
+        this.s3Endpoint = s3Endpoint != null ? s3Endpoint : "";
+    }
+
+    @Deprecated
+    public String getDriveFolderName() {
+        return s3BucketName;
+    }
+
+    @Deprecated
     public void setDriveFolderName(String driveFolderName) {
-        this.driveFolderName = Objects.requireNonNull(driveFolderName, "driveFolderName cannot be null");
+        this.s3BucketName = Objects.requireNonNull(driveFolderName, "driveFolderName cannot be null");
     }
 
     public int getRetentionDays() {

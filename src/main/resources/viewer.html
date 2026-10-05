@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watcher - متصفح لقطات الشاشة</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: rgba(59, 130, 246, 0.15);
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --danger-light: rgba(239, 68, 68, 0.15);
+            --success: #10b981;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            backdrop-filter: blur(8px);
+        }
+
+        .header-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-icon {
+            font-size: 1.8rem;
+            background: var(--accent-light);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: var(--radius-sm);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Filter Controls */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.35rem 0.65rem;
+            gap: 0.4rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        input[type="date"], select {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            padding: 0.2rem 0.2rem;
+            color-scheme: dark;
+        }
+
+        select option {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .btn {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 0.45rem 0.9rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .stats-badge {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 0.45rem 0.8rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .stats-badge strong {
+            color: var(--accent);
+        }
+
+        /* Selection Floating Bar */
+        .selection-bar {
+            background-color: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 2rem;
+            position: sticky;
+            top: 75px;
+            z-index: 35;
+            display: none;
+            animation: slideDown 0.2s ease;
+        }
+
+        .selection-bar.active {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .selection-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .selection-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .selection-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Main Content */
+        main {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            flex: 1;
+            width: 100%;
+        }
+
+        /* Gallery Grid */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 1.25rem;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .card.selected {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent);
+        }
+
+        .card-checkbox-wrapper {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+        }
+
+        .card-checkbox {
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            accent-color: var(--accent);
+            border-radius: 4px;
+        }
+
+        .card-thumb-wrapper {
+            position: relative;
+            aspect-ratio: 16 / 10;
+            background-color: #0b0f19;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.25s ease;
+        }
+
+        .card:hover .card-thumb {
+            transform: scale(1.03);
+        }
+
+        .badge-machine {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            color: #38bdf8;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.55rem;
+            border-radius: 6px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .badge-date {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            color: #94a3b8;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+        }
+
+        .badge-display {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            color: #a78bfa;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            border: 1px solid rgba(167, 139, 250, 0.3);
+        }
+
+        .card-body {
+            padding: 0.85rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border-color);
+            background-color: rgba(30, 41, 59, 0.5);
+        }
+
+        .capture-time {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .capture-size {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* States */
+        .state-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 5rem 1rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .state-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .state-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Lightbox Modal */
+        .lightbox-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(5, 8, 16, 0.96);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .lightbox-modal.active {
+            display: flex;
+        }
+
+        .lightbox-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, transparent 100%);
+        }
+
+        .lightbox-info {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            font-size: 0.95rem;
+            flex-wrap: wrap;
+        }
+
+        .lightbox-info strong {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .lightbox-info span {
+            color: var(--text-secondary);
+        }
+
+        .lightbox-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .icon-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .icon-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .icon-btn.danger-btn:hover {
+            background-color: var(--danger);
+        }
+
+        .lightbox-body {
+            position: relative;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 1rem;
+            overflow: hidden;
+        }
+
+        .lightbox-img {
+            max-width: 95%;
+            max-height: 85vh;
+            object-fit: contain;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1.8rem;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .nav-btn:hover {
+            background-color: var(--accent);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .nav-prev { right: 2rem; }
+        .nav-next { left: 2rem; }
+
+        .lightbox-footer {
+            padding: 0.85rem 2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: linear-gradient(0deg, rgba(15, 23, 42, 0.9) 0%, transparent 100%);
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background-color: #1e293b;
+            color: white;
+            border: 1px solid var(--accent);
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-xl);
+            z-index: 150;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .toast.show { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+            header { padding: 0.75rem 1rem; }
+            main { padding: 1rem; }
+            .header-container { flex-direction: column; align-items: stretch; }
+            .controls { justify-content: space-between; }
+            .gallery-grid { grid-template-columns: 1fr; }
+            .nav-prev { right: 0.5rem; }
+            .nav-next { left: 0.5rem; }
+            .nav-btn { width: 42px; height: 42px; font-size: 1.4rem; }
+            .lightbox-info { gap: 0.75rem; font-size: 0.8rem; }
+            .selection-bar { padding: 0.75rem 1rem; top: 130px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header & Navigation -->
+    <header>
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-icon">📸</div>
+                <div>
+                    <h1 class="brand-title">Watcher - مراقب الدراسة</h1>
+                    <p class="brand-subtitle">استعراض وفلترة لقطات الشاشة في السحابة</p>
+                </div>
+            </div>
+
+            <div class="controls">
+                <!-- Start Date -->
+                <div class="control-group">
+                    <span class="control-label">من:</span>
+                    <input type="date" id="startDate" onchange="onDateRangeChanged()">
+                </div>
+
+                <!-- End Date -->
+                <div class="control-group">
+                    <span class="control-label">إلى:</span>
+                    <input type="date" id="endDate" onchange="onDateRangeChanged()">
+                </div>
+
+                <!-- Machine selector -->
+                <div class="control-group">
+                    <span>🖥️</span>
+                    <select id="machineSelect" onchange="loadScreenshots()">
+                        <option value="ALL">كافة الأجهزة</option>
+                    </select>
+                </div>
+
+                <!-- Refresh Button -->
+                <button class="btn" onclick="loadScreenshots()" title="تحديث القائمة">
+                    <span>🔄</span> تحديث
+                </button>
+
+                <!-- Count Badge -->
+                <div class="stats-badge">
+                    العدد: <strong id="itemCount">0</strong>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Selection Toolbar -->
+    <div id="selectionBar" class="selection-bar">
+        <div class="selection-container">
+            <div class="selection-info">
+                <span>☑️</span>
+                <span>تم تحديد <span id="selectedCount" style="color:var(--accent);">0</span> صورة</span>
+            </div>
+            <div class="selection-actions">
+                <button class="btn btn-outline" onclick="selectAll()">تحديد الكل</button>
+                <button class="btn btn-outline" onclick="deselectAll()">إلغاء التحديد</button>
+                <button class="btn btn-danger" onclick="deleteSelected()" id="deleteSelectedBtn">
+                    <span>🗑️</span> حذف المحدد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Loading State -->
+        <div id="loadingState" class="state-container">
+            <div class="spinner"></div>
+            <div class="state-title">جاري استرجاع لقطات الشاشة من السحابة...</div>
+            <p>يرجى الانتظار بضع ثوانٍ</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="state-container" style="display: none;">
+            <div class="state-icon">📂</div>
+            <div class="state-title">لا توجد صور متوفرة</div>
+            <p id="emptyMessage">لم يتم العثور على أي لقطات شاشة في النطاق الزمني المحدد.</p>
+        </div>
+
+        <!-- Gallery Grid -->
+        <div id="galleryGrid" class="gallery-grid" style="display: none;"></div>
+    </main>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="lightbox-modal">
+        <div class="lightbox-header">
+            <div class="lightbox-info">
+                <div>🖥️ <strong id="lbMachine">-</strong></div>
+                <div>📅 <span id="lbDate">-</span></div>
+                <div>⏰ <span id="lbTime">-</span></div>
+                <div>📺 <span id="lbDisplay">-</span></div>
+                <div>📏 <span id="lbSize">-</span></div>
+            </div>
+            <div class="lightbox-actions">
+                <button class="icon-btn danger-btn" onclick="deleteCurrentImage()" title="حذف هذه الصورة">🗑️</button>
+                <a id="lbDownloadBtn" class="icon-btn" download title="تحميل الصورة">⬇️</a>
+                <button class="icon-btn" onclick="closeLightbox()" title="إغلاق (Esc)">✕</button>
+            </div>
+        </div>
+
+        <div class="lightbox-body">
+            <button class="nav-btn nav-prev" onclick="prevImage()" title="السابق (◀)">&#10095;</button>
+            <img id="lightboxImg" class="lightbox-img" src="" alt="لقطة شاشة بالحجم الكامل">
+            <button class="nav-btn nav-next" onclick="nextImage()" title="التالي (▶)">&#10094;</button>
+        </div>
+
+        <div class="lightbox-footer">
+            <span id="lbCounter">1 / 1</span> &bull; استخدم الأسهم على الكيبورد للتنقل، و Esc للإغلاق.
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span id="toastIcon">✅</span>
+        <span id="toastMsg">تمت العملية بنجاح</span>
+    </div>
+
+    <script>
+        let currentScreenshots = [];
+        let selectedKeys = new Set();
+        let currentIndex = -1;
+
+        async function init() {
+            await loadDatesAndInitRange();
+        }
+
+        async function loadDatesAndInitRange() {
+            try {
+                const res = await fetch('/api/dates');
+                if (!res.ok) throw new Error('فشل جلب قائمة التواريخ');
+                const dates = await res.json();
+
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                if (dates.length > 0) {
+                    // Default range: newest date to newest date (or today)
+                    const newest = dates[0];
+                    document.getElementById('startDate').value = newest;
+                    document.getElementById('endDate').value = newest;
+                } else {
+                    document.getElementById('startDate').value = todayStr;
+                    document.getElementById('endDate').value = todayStr;
+                }
+
+                await onDateRangeChanged();
+            } catch (err) {
+                console.error(err);
+                showEmpty('حدث خطأ أثناء الاتصال بالخادم: ' + err.message);
+            }
+        }
+
+        async function onDateRangeChanged() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            const machineSelect = document.getElementById('machineSelect');
+            const prevSelectedMachine = machineSelect.value;
+            machineSelect.innerHTML = '<option value="ALL">كافة الأجهزة</option>';
+
+            try {
+                let url = '/api/machines';
+                const params = [];
+                if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
+                if (endDate) params.push(`endDate=${encodeURIComponent(endDate)}`);
+                if (params.length > 0) url += '?' + params.join('&');
+
+                const res = await fetch(url);
+                if (res.ok) {
+                    const machines = await res.json();
+                    machines.forEach(m => {
+                        const opt = document.createElement('option');
+                        opt.value = m;
+                        opt.textContent = m;
+                        if (m === prevSelectedMachine) opt.selected = true;
+                        machineSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.warn('Could not load machines:', e);
+            }
+
+            await loadScreenshots();
+        }
+
+        async function loadScreenshots() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const machine = document.getElementById('machineSelect').value;
+
+            showLoading();
+            selectedKeys.clear();
+            updateSelectionBar();
+
+            try {
+                const params = [];
+                if (startDate) params.push(`startDate=${encodeURIComponent(startDate)}`);
+                if (endDate) params.push(`endDate=${encodeURIComponent(endDate)}`);
+                if (machine && machine !== 'ALL') params.push(`machine=${encodeURIComponent(machine)}`);
+
+                let url = '/api/screenshots';
+                if (params.length > 0) url += '?' + params.join('&');
+
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('فشل استرجاع لقطات الشاشة');
+
+                currentScreenshots = await res.json();
+                renderGallery(currentScreenshots);
+            } catch (err) {
+                console.error(err);
+                showEmpty('فشل في جلب الصور: ' + err.message);
+            }
+        }
+
+        function renderGallery(items) {
+            const grid = document.getElementById('galleryGrid');
+            const countBadge = document.getElementById('itemCount');
+            countBadge.textContent = items.length;
+
+            if (items.length === 0) {
+                showEmpty('لم يتم العثور على أي لقطات شاشة في النطاق المحدد.');
+                return;
+            }
+
+            grid.innerHTML = '';
+
+            items.forEach((item, index) => {
+                const meta = parseFilename(item.filename);
+
+                const card = document.createElement('div');
+                card.className = 'card' + (selectedKeys.has(item.key) ? ' selected' : '');
+                card.id = 'card-' + index;
+
+                card.innerHTML = `
+                    <div class="card-checkbox-wrapper" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="card-checkbox" ${selectedKeys.has(item.key) ? 'checked' : ''} 
+                               onchange="toggleSelect('${escapeJsString(item.key)}', ${index})">
+                    </div>
+                    <div class="card-thumb-wrapper" onclick="openLightbox(${index})">
+                        <img class="card-thumb" src="/api/image?key=${encodeURIComponent(item.key)}" loading="lazy" alt="${item.filename}">
+                        <div class="badge-machine">💻 ${escapeHtml(item.machine || meta.machine)}</div>
+                        <div class="badge-date">📅 ${escapeHtml(item.date || meta.date)}</div>
+                        <div class="badge-display">📺 شاشة ${escapeHtml(meta.display)}</div>
+                    </div>
+                    <div class="card-body" onclick="openLightbox(${index})">
+                        <div class="capture-time">
+                            <span>⏰</span> ${escapeHtml(meta.timeStr)}
+                        </div>
+                        <div class="capture-size">${formatBytes(item.size)}</div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            grid.style.display = 'grid';
+        }
+
+        function toggleSelect(key, index) {
+            if (selectedKeys.has(key)) {
+                selectedKeys.delete(key);
+            } else {
+                selectedKeys.add(key);
+            }
+
+            const card = document.getElementById('card-' + index);
+            if (card) {
+                if (selectedKeys.has(key)) card.classList.add('selected');
+                else card.classList.remove('selected');
+            }
+
+            updateSelectionBar();
+        }
+
+        function selectAll() {
+            currentScreenshots.forEach((item, index) => {
+                selectedKeys.add(item.key);
+                const card = document.getElementById('card-' + index);
+                if (card) {
+                    card.classList.add('selected');
+                    const cb = card.querySelector('.card-checkbox');
+                    if (cb) cb.checked = true;
+                }
+            });
+            updateSelectionBar();
+        }
+
+        function deselectAll() {
+            selectedKeys.clear();
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.classList.remove('selected');
+                const cb = card.querySelector('.card-checkbox');
+                if (cb) cb.checked = false;
+            });
+            updateSelectionBar();
+        }
+
+        function updateSelectionBar() {
+            const bar = document.getElementById('selectionBar');
+            const countSpan = document.getElementById('selectedCount');
+            const count = selectedKeys.size;
+            countSpan.textContent = count;
+
+            if (count > 0) {
+                bar.classList.add('active');
+            } else {
+                bar.classList.remove('active');
+            }
+        }
+
+        async function deleteSelected() {
+            const count = selectedKeys.size;
+            if (count === 0) return;
+
+            const confirmed = confirm(`هل أنت متأكد من رغبتك في حذف (${count}) صورة نهائياً من السحابة؟\nهذا الإجراء لا يمكن التراجع عنه.`);
+            if (!confirmed) return;
+
+            const btn = document.getElementById('deleteSelectedBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'جاري الحذف...';
+            btn.disabled = true;
+
+            try {
+                const keysArray = Array.from(selectedKeys);
+                const res = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys: keysArray })
+                });
+
+                if (!res.ok) throw new Error('فشلت عملية الحذف على الخادم');
+                const data = await res.json();
+
+                showToast(`تم حذف ${data.deletedCount} صورة بنجاح من السحابة.`);
+
+                // Filter out deleted items locally
+                currentScreenshots = currentScreenshots.filter(item => !selectedKeys.has(item.key));
+                selectedKeys.clear();
+                updateSelectionBar();
+                renderGallery(currentScreenshots);
+            } catch (err) {
+                alert('حدث خطأ أثناء الحذف: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteCurrentImage() {
+            if (currentIndex < 0 || currentIndex >= currentScreenshots.length) return;
+            const item = currentScreenshots[currentIndex];
+
+            const confirmed = confirm(`هل أنت متأكد من حذف هذه الصورة (${item.filename}) نهائياً من السحابة؟`);
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keys: [item.key] })
+                });
+
+                if (!res.ok) throw new Error('فشل الحذف');
+                showToast('تم حذف الصورة بنجاح');
+
+                currentScreenshots.splice(currentIndex, 1);
+                if (currentScreenshots.length === 0) {
+                    closeLightbox();
+                    renderGallery([]);
+                } else {
+                    if (currentIndex >= currentScreenshots.length) {
+                        currentIndex = currentScreenshots.length - 1;
+                    }
+                    updateLightboxView();
+                    renderGallery(currentScreenshots);
+                }
+            } catch (err) {
+                alert('خطأ أثناء الحذف: ' + err.message);
+            }
+        }
+
+        function parseFilename(filename) {
+            // Pattern 1: screenshot_{HOSTNAME}_{YYYYMMDD}_{HHmmss}_disp{INDEX}.jpg
+            let match = filename.match(/^screenshot_(.+)_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})_disp(?:lay)?(\d+)\.jpe?g$/i);
+            if (match) {
+                return {
+                    machine: match[1],
+                    date: `${match[2]}-${match[3]}-${match[4]}`,
+                    timeStr: `${match[5]}:${match[6]}:${match[7]}`,
+                    display: match[8]
+                };
+            }
+            // Pattern 2: screenshot_{HOSTNAME}_{YYYY-MM-DD_HH-mm-ss}_display{INDEX}.jpg
+            match = filename.match(/^screenshot_(.+)_(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})_disp(?:lay)?(\d+)\.jpe?g$/i);
+            if (match) {
+                const timeParts = match[3].split('-');
+                return {
+                    machine: match[1],
+                    date: match[2],
+                    timeStr: `${timeParts[0]}:${timeParts[1]}:${timeParts[2]}`,
+                    display: match[4]
+                };
+            }
+            return { machine: 'الجهاز', date: '', timeStr: filename, display: '0' };
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes || bytes <= 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'flex';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('galleryGrid').style.display = 'none';
+        }
+
+        function showEmpty(msg) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('galleryGrid').style.display = 'none';
+            const emptyDiv = document.getElementById('emptyState');
+            if (msg) document.getElementById('emptyMessage').textContent = msg;
+            emptyDiv.style.display = 'flex';
+            document.getElementById('itemCount').textContent = '0';
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+
+        // Lightbox Functions
+        function openLightbox(index) {
+            if (index < 0 || index >= currentScreenshots.length) return;
+            currentIndex = index;
+            updateLightboxView();
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            currentIndex = -1;
+        }
+
+        function updateLightboxView() {
+            const item = currentScreenshots[currentIndex];
+            const meta = parseFilename(item.filename);
+
+            const imgUrl = `/api/image?key=${encodeURIComponent(item.key)}`;
+            document.getElementById('lightboxImg').src = imgUrl;
+
+            document.getElementById('lbMachine').textContent = item.machine || meta.machine;
+            document.getElementById('lbDate').textContent = item.date || meta.date;
+            document.getElementById('lbTime').textContent = meta.timeStr;
+            document.getElementById('lbDisplay').textContent = 'شاشة ' + meta.display;
+            document.getElementById('lbSize').textContent = formatBytes(item.size);
+            document.getElementById('lbCounter').textContent = `${currentIndex + 1} من ${currentScreenshots.length}`;
+
+            const dlBtn = document.getElementById('lbDownloadBtn');
+            dlBtn.href = imgUrl;
+            dlBtn.download = item.filename;
+        }
+
+        function nextImage() {
+            if (currentIndex < currentScreenshots.length - 1) {
+                currentIndex++;
+                updateLightboxView();
+            } else {
+                currentIndex = 0;
+                updateLightboxView();
+            }
+        }
+
+        function prevImage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                updateLightboxView();
+            } else {
+                currentIndex = currentScreenshots.length - 1;
+                updateLightboxView();
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            const lb = document.getElementById('lightbox');
+            if (lb.classList.contains('active')) {
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowLeft') nextImage();
+                if (e.key === 'ArrowRight') prevImage();
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        function escapeJsString(str) {
+            if (!str) return '';
+            return String(str).replace(/'/g, "\\'");
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

@@ -8,8 +8,8 @@ import com.watcher.protection.ProcessGuard;
 import com.watcher.scheduler.CaptureScheduler;
 import com.watcher.scheduler.RetentionCleanerService;
 import com.watcher.security.SecurityAuditor;
-import com.watcher.storage.GoogleDriveUploader;
 import com.watcher.storage.LocalSpoolManager;
+import com.watcher.storage.S3Uploader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import picocli.CommandLine;
@@ -27,7 +27,13 @@ public class App {
     public static void main(String[] args) {
         // If CLI flags are passed, delegate to Admin CLI
         if (args.length > 0 && (args[0].startsWith("-") || args[0].equals("admin"))) {
-            int exitCode = new CommandLine(new AdminCli()).execute(args);
+            java.util.List<String> cliArgs = new java.util.ArrayList<>();
+            for (String arg : args) {
+                if (!arg.equals("admin") && !arg.equals("--admin")) {
+                    cliArgs.add(arg);
+                }
+            }
+            int exitCode = new CommandLine(new AdminCli()).execute(cliArgs.toArray(new String[0]));
             System.exit(exitCode);
             return;
         }
@@ -62,16 +68,20 @@ public class App {
             ScreenCapture screenCapture = new ScreenCapture();
             LocalSpoolManager spoolManager = new LocalSpoolManager(config.getSpoolDirectory(), config.getMaxSpoolSizeBytes());
 
-            GoogleDriveUploader uploader = null;
-            if (Files.exists(Path.of(config.getCredentialsPath()))) {
-                try {
-                    uploader = new GoogleDriveUploader(config.getCredentialsPath(), config.getDriveFolderName(), screenCapture.getHostname());
-                    logger.info("Google Drive Uploader initialized successfully.");
-                } catch (Exception e) {
-                    logger.warn("Could not connect to Google Drive initially: {}. Spooling locally.", e.getMessage());
-                }
-            } else {
-                logger.warn("Google credentials not found at {}. Captures will accumulate in spool queue.", config.getCredentialsPath());
+            S3Uploader uploader = null;
+            try {
+                uploader = new S3Uploader(
+                        config.getCredentialsPath(),
+                        config.getS3BucketName(),
+                        config.getS3Region(),
+                        config.getS3AccessKey(),
+                        config.getS3SecretKey(),
+                        config.getS3Endpoint(),
+                        screenCapture.getHostname()
+                );
+                logger.info("S3 Uploader initialized successfully for bucket [{}].", config.getS3BucketName());
+            } catch (Exception e) {
+                logger.warn("Could not initialize S3 Uploader: {}. Captures will accumulate in spool queue.", e.getMessage());
             }
 
             CaptureScheduler scheduler = new CaptureScheduler(config, screenCapture, spoolManager, uploader, auditor);

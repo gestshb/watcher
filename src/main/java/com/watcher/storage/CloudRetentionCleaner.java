@@ -1,34 +1,37 @@
 package com.watcher.storage;
 
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
- * Periodically cleans up daily screenshot folders on Google Drive that exceed the retention policy.
+ * Periodically cleans up daily screenshot folders on S3 that exceed the retention policy.
+ * Objects are structured under date prefixes: YYYY-MM-DD/
  */
 public class CloudRetentionCleaner {
     private static final Logger logger = LogManager.getLogger(CloudRetentionCleaner.class);
     private static final DateTimeFormatter DATE_DIR_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    private final Drive driveService;
-    private final String rootFolderName;
+    private final S3Client s3Client;
+    private final String bucketName;
 
-    public CloudRetentionCleaner(Drive driveService, String rootFolderName) {
-        this.driveService = driveService;
-        this.rootFolderName = rootFolderName;
+    public CloudRetentionCleaner(S3Client s3Client, String bucketName) {
+        this.s3Client = Objects.requireNonNull(s3Client, "s3Client cannot be null");
+        this.bucketName = Objects.requireNonNull(bucketName, "bucketName cannot be null");
     }
 
     /**
-     * Deletes daily folders under root folder older than retentionDays.
+     * Finds and deletes all objects with date prefixes older than retentionDays.
+     * @param retentionDays maximum age in days
+     * @return number of date prefix folders deleted
      */
     public int cleanOldFolders(int retentionDays) {
         if (retentionDays <= 0) {
@@ -36,53 +39,80 @@ public class CloudRetentionCleaner {
         }
 
         try {
-            // Find root folder ID
-            FileList rootResult = driveService.files().list()
-                    .setQ("mimeType = 'application/vnd.google-apps.folder' and trashed = false and name = '" + rootFolderName.replace("'", "\\'") + "'")
-                    .setSpaces("drive")
-                    .setFields("files(id)")
-                    .execute();
-
-            if (rootResult.getFiles() == null || rootResult.getFiles().isEmpty()) {
-                logger.debug("Root folder '{}' not found in Drive. Nothing to clean.", rootFolderName);
-                return 0;
-            }
-
-            String rootId = rootResult.getFiles().get(0).getId();
-
-            // List all children folders of root
-            FileList childrenResult = driveService.files().list()
-                    .setQ("mimeType = 'application/vnd.google-apps.folder' and trashed = false and '" + rootId + "' in parents")
-                    .setSpaces("drive")
-                    .setFields("files(id, name)")
-                    .execute();
-
-            List<File> children = childrenResult.getFiles();
-            if (children == null || children.isEmpty()) {
-                return 0;
-            }
-
             LocalDate cutoffDate = LocalDate.now().minusDays(retentionDays);
-            int deletedCount = 0;
+            int deletedFolders = 0;
+            String continuationToken = null;
 
-            for (File child : children) {
-                String folderName = child.getName();
-                try {
-                    LocalDate folderDate = LocalDate.parse(folderName, DATE_DIR_FORMAT);
-                    if (folderDate.isBefore(cutoffDate)) {
-                        driveService.files().delete(child.getId()).execute();
-                        logger.info("Purged expired cloud folder '{}' (older than {} days)", folderName, retentionDays);
-                        deletedCount++;
-                    }
-                } catch (DateTimeParseException ignored) {
-                    // Not a date folder, skip
+            do {
+                ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
+                        .bucket(bucketName)
+                        .delimiter("/");
+                if (continuationToken != null) {
+                    reqBuilder.continuationToken(continuationToken);
                 }
-            }
 
-            return deletedCount;
-        } catch (IOException e) {
-            logger.error("Failed executing cloud retention cleaner", e);
+                ListObjectsV2Response listResponse = s3Client.listObjectsV2(reqBuilder.build());
+                List<CommonPrefix> prefixes = listResponse.commonPrefixes();
+
+                if (prefixes != null) {
+                    for (CommonPrefix cp : prefixes) {
+                        String prefixStr = cp.prefix(); // e.g. "2026-08-01/"
+                        String dateCandidate = prefixStr.endsWith("/")
+                                ? prefixStr.substring(0, prefixStr.length() - 1)
+                                : prefixStr;
+
+                        try {
+                            LocalDate folderDate = LocalDate.parse(dateCandidate, DATE_DIR_FORMAT);
+                            if (folderDate.isBefore(cutoffDate)) {
+                                logger.info("Found expired date prefix [{}] in S3 bucket [{}] (older than {} days). Deleting contents...",
+                                        prefixStr, bucketName, retentionDays);
+                                deleteObjectsWithPrefix(prefixStr);
+                                deletedFolders++;
+                            }
+                        } catch (DateTimeParseException ignored) {
+                            // Skip prefixes that do not match date format
+                        }
+                    }
+                }
+                continuationToken = listResponse.nextContinuationToken();
+            } while (continuationToken != null);
+
+            return deletedFolders;
+        } catch (Exception e) {
+            logger.error("Error cleaning expired folders in S3 bucket [{}]: {}", bucketName, e.getMessage());
             return 0;
         }
+    }
+
+    private void deleteObjectsWithPrefix(String prefix) {
+        String continuationToken = null;
+        do {
+            ListObjectsV2Request.Builder reqBuilder = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .prefix(prefix);
+            if (continuationToken != null) {
+                reqBuilder.continuationToken(continuationToken);
+            }
+
+            ListObjectsV2Response response = s3Client.listObjectsV2(reqBuilder.build());
+            List<S3Object> contents = response.contents();
+
+            if (contents != null && !contents.isEmpty()) {
+                List<ObjectIdentifier> toDelete = new ArrayList<>();
+                for (S3Object obj : contents) {
+                    toDelete.add(ObjectIdentifier.builder().key(obj.key()).build());
+                }
+
+                DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+                        .bucket(bucketName)
+                        .delete(Delete.builder().objects(toDelete).build())
+                        .build();
+
+                s3Client.deleteObjects(deleteRequest);
+                logger.info("Deleted {} expired objects under prefix [{}] from S3", toDelete.size(), prefix);
+            }
+
+            continuationToken = response.nextContinuationToken();
+        } while (continuationToken != null);
     }
 }

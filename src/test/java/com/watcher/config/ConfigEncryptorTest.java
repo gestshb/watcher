@@ -55,14 +55,18 @@ public class ConfigEncryptorTest {
         AppConfig config = new AppConfig();
         config.setCaptureIntervalMinutes(3);
         config.setImageQuality(0.8f);
-        config.setDriveFolderName("TestStudyFolder");
+        config.setS3BucketName("my-test-bucket");
+        config.setS3Region("eu-central-1");
+        config.setS3Endpoint("https://r2.cloudflarestorage.com");
 
         manager.save(config, password);
 
         AppConfig loaded = manager.load(password);
         assertEquals(3, loaded.getCaptureIntervalMinutes());
         assertEquals(0.8f, loaded.getImageQuality(), 0.001);
-        assertEquals("TestStudyFolder", loaded.getDriveFolderName());
+        assertEquals("my-test-bucket", loaded.getS3BucketName());
+        assertEquals("eu-central-1", loaded.getS3Region());
+        assertEquals("https://r2.cloudflarestorage.com", loaded.getS3Endpoint());
         assertTrue(ConfigEncryptor.verifyPassword(password, loaded.getAdminPasswordSalt(), loaded.getAdminPasswordHash()));
     }
 }

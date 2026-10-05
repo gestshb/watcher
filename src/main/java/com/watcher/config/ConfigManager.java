@@ -89,6 +89,13 @@ public class ConfigManager {
         props.setProperty("drive.folder.name", config.getDriveFolderName());
         props.setProperty("drive.retention.days", String.valueOf(config.getRetentionDays()));
         props.setProperty("drive.credentials.path", config.getCredentialsPath());
+        props.setProperty("s3.bucket", config.getS3BucketName());
+        props.setProperty("s3.region", config.getS3Region());
+        props.setProperty("s3.access.key", config.getS3AccessKey());
+        props.setProperty("s3.secret.key", config.getS3SecretKey());
+        props.setProperty("s3.endpoint", config.getS3Endpoint());
+        props.setProperty("s3.retention.days", String.valueOf(config.getRetentionDays()));
+        props.setProperty("s3.credentials.path", config.getCredentialsPath());
         props.setProperty("admin.password.hash", config.getAdminPasswordHash());
         props.setProperty("admin.password.salt", config.getAdminPasswordSalt());
 
@@ -122,11 +129,32 @@ public class ConfigManager {
         if (props.containsKey("drive.folder.name")) {
             config.setDriveFolderName(props.getProperty("drive.folder.name"));
         }
+        if (props.containsKey("s3.bucket")) {
+            config.setS3BucketName(props.getProperty("s3.bucket"));
+        }
+        if (props.containsKey("s3.region")) {
+            config.setS3Region(props.getProperty("s3.region"));
+        }
+        if (props.containsKey("s3.access.key")) {
+            config.setS3AccessKey(props.getProperty("s3.access.key"));
+        }
+        if (props.containsKey("s3.secret.key")) {
+            config.setS3SecretKey(props.getProperty("s3.secret.key"));
+        }
+        if (props.containsKey("s3.endpoint")) {
+            config.setS3Endpoint(props.getProperty("s3.endpoint"));
+        }
         if (props.containsKey("drive.retention.days")) {
             config.setRetentionDays(Integer.parseInt(props.getProperty("drive.retention.days")));
         }
+        if (props.containsKey("s3.retention.days")) {
+            config.setRetentionDays(Integer.parseInt(props.getProperty("s3.retention.days")));
+        }
         if (props.containsKey("drive.credentials.path")) {
             config.setCredentialsPath(props.getProperty("drive.credentials.path"));
+        }
+        if (props.containsKey("s3.credentials.path")) {
+            config.setCredentialsPath(props.getProperty("s3.credentials.path"));
         }
         if (props.containsKey("admin.password.hash")) {
             config.setAdminPasswordHash(props.getProperty("admin.password.hash"));

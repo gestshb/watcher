@@ -4,6 +4,8 @@ import com.watcher.config.AppConfig;
 import com.watcher.config.ConfigEncryptor;
 import com.watcher.config.ConfigManager;
 import com.watcher.storage.LocalSpoolManager;
+import com.watcher.storage.S3Uploader;
+import com.watcher.viewer.ViewerServer;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -33,6 +35,15 @@ public class AdminCli implements Callable<Integer> {
     @Option(names = {"-r", "--set-retention"}, description = "Set cloud retention period in days")
     private Integer retentionDays;
 
+    @Option(names = {"-b", "--set-bucket"}, description = "Set S3 bucket name")
+    private String bucket;
+
+    @Option(names = {"--set-region"}, description = "Set AWS/S3 region (e.g. us-east-1, auto)")
+    private String region;
+
+    @Option(names = {"--set-endpoint"}, description = "Set S3 custom endpoint override (e.g. Cloudflare R2 / MinIO)")
+    private String endpoint;
+
     @Option(names = {"-q", "--set-quality"}, description = "Set image compression quality (0.1 to 1.0)")
     private Float quality;
 
@@ -41,6 +52,12 @@ public class AdminCli implements Callable<Integer> {
 
     @Option(names = {"--uninstall"}, description = "Completely uninstall and remove local files")
     private boolean uninstall;
+
+    @Option(names = {"-v", "--viewer"}, description = "Start local web viewer server to browse screenshots")
+    private boolean viewer;
+
+    @Option(names = {"--viewer-port"}, defaultValue = "8080", description = "Port for the local web viewer (default: 8080)")
+    private int viewerPort;
 
     @Override
     public Integer call() {
@@ -76,6 +93,24 @@ public class AdminCli implements Callable<Integer> {
                 config.setRetentionDays(retentionDays);
                 configModified = true;
                 System.out.printf("Retention period set to %d days.%n", retentionDays);
+            }
+
+            if (bucket != null && !bucket.isBlank()) {
+                config.setS3BucketName(bucket.trim());
+                configModified = true;
+                System.out.printf("S3 bucket set to '%s'.%n", bucket.trim());
+            }
+
+            if (region != null && !region.isBlank()) {
+                config.setS3Region(region.trim());
+                configModified = true;
+                System.out.printf("S3 region set to '%s'.%n", region.trim());
+            }
+
+            if (endpoint != null) {
+                config.setS3Endpoint(endpoint.trim());
+                configModified = true;
+                System.out.printf("S3 custom endpoint set to '%s'.%n", endpoint.trim());
             }
 
             if (quality != null) {
@@ -115,9 +150,57 @@ public class AdminCli implements Callable<Integer> {
                 System.out.println("Local data removed successfully. Please stop the service and remove the binary.");
             }
 
+            if (viewer) {
+                return startViewer(config);
+            }
+
             return 0;
         } catch (Exception e) {
             System.err.println("Admin CLI operation failed: " + e.getMessage());
+            return 1;
+        }
+    }
+
+    private int startViewer(AppConfig config) {
+        System.out.println("Connecting to Cloudflare R2 / S3 storage...");
+        try {
+            S3Uploader uploader = new S3Uploader(
+                    config.getCredentialsPath(),
+                    config.getS3BucketName(),
+                    config.getS3Region(),
+                    config.getS3AccessKey(),
+                    config.getS3SecretKey(),
+                    config.getS3Endpoint(),
+                    "VIEWER"
+            );
+
+            ViewerServer viewerServer = new ViewerServer(uploader.getS3Client(), uploader.getBucketName(), viewerPort);
+            viewerServer.start();
+
+            String url = "http://localhost:" + viewerPort;
+            System.out.println("=================================================");
+            System.out.println("  📸 Watcher Web Viewer is RUNNING!");
+            System.out.println("  Open your browser at: " + url);
+            System.out.println("  Press Ctrl+C in this terminal to stop the viewer.");
+            System.out.println("=================================================");
+
+            // Try to open default browser automatically
+            try {
+                if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+                    java.awt.Desktop.getDesktop().browse(java.net.URI.create(url));
+                }
+            } catch (Exception ignored) {
+            }
+
+            // Keep alive until Ctrl+C
+            Runtime.getRuntime().addShutdownHook(new Thread(viewerServer::stop));
+            Thread.currentThread().join();
+            return 0;
+        } catch (InterruptedException e) {
+            System.out.println("Viewer stopped.");
+            return 0;
+        } catch (Exception e) {
+            System.err.println("Failed to start web viewer: " + e.getMessage());
             return 1;
         }
     }
@@ -129,7 +212,11 @@ public class AdminCli implements Callable<Integer> {
         System.out.printf("Capture Interval  : %d minutes%n", config.getCaptureIntervalMinutes());
         System.out.printf("Image Quality     : %.2f%n", config.getImageQuality());
         System.out.printf("Spool Directory   : %s%n", config.getSpoolDirectory());
-        System.out.printf("Drive Folder Name : %s%n", config.getDriveFolderName());
+        System.out.printf("S3 Bucket Name    : %s%n", config.getS3BucketName());
+        System.out.printf("S3 Region         : %s%n", config.getS3Region());
+        if (!config.getS3Endpoint().isBlank()) {
+            System.out.printf("S3 Custom Endpoint: %s%n", config.getS3Endpoint());
+        }
         System.out.printf("Cloud Retention   : %d days%n", config.getRetentionDays());
         System.out.printf("Delete After Sync : %b%n", config.isDeleteAfterUpload());
 

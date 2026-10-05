@@ -10,14 +10,45 @@ if %errorLevel% neq 0 (
     exit /b 1
 )
 
+set SCRIPT_DIR=%~dp0
+set JAR_FILE=%SCRIPT_DIR%syshealthd.jar
+
+if not exist "%JAR_FILE%" (
+    if exist "%SCRIPT_DIR%..\target\syshealthd.jar" (
+        set JAR_FILE=%SCRIPT_DIR%..\target\syshealthd.jar
+    ) else (
+        echo Error: syshealthd.jar was not found in the same directory as this script.
+        echo Please ensure syshealthd.jar is placed next to this script in: %SCRIPT_DIR%
+        exit /b 1
+    )
+)
+
 set TARGET_DIR=C:\ProgramData\SystemHealth
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 if not exist "%TARGET_DIR%\spool" mkdir "%TARGET_DIR%\spool"
 if not exist "%TARGET_DIR%\logs" mkdir "%TARGET_DIR%\logs"
 
 :: Copy files
-copy /Y "%~dp0..\target\syshealthd.jar" "%TARGET_DIR%\syshealthd.jar"
-if exist "%~dp0..\credentials.json" copy /Y "%~dp0..\credentials.json" "%TARGET_DIR%\credentials.json"
+echo Copying %JAR_FILE% to %TARGET_DIR%...
+copy /Y "%JAR_FILE%" "%TARGET_DIR%\syshealthd.jar"
+
+if exist "%SCRIPT_DIR%credentials.json" (
+    copy /Y "%SCRIPT_DIR%credentials.json" "%TARGET_DIR%\credentials.json"
+) else if exist "%SCRIPT_DIR%..\credentials.json" (
+    copy /Y "%SCRIPT_DIR%..\credentials.json" "%TARGET_DIR%\credentials.json"
+)
+
+if exist "%SCRIPT_DIR%config.dat" (
+    copy /Y "%SCRIPT_DIR%config.dat" "%TARGET_DIR%\config.dat"
+) else if exist "%SCRIPT_DIR%..\config.dat" (
+    copy /Y "%SCRIPT_DIR%..\config.dat" "%TARGET_DIR%\config.dat"
+)
+
+if exist "%SCRIPT_DIR%tokens" (
+    xcopy /E /I /Y "%SCRIPT_DIR%tokens" "%TARGET_DIR%\tokens" >nul
+) else if exist "%SCRIPT_DIR%..\tokens" (
+    xcopy /E /I /Y "%SCRIPT_DIR%..\tokens" "%TARGET_DIR%\tokens" >nul
+)
 
 :: Lockdown permissions: SYSTEM & Administrators full access, Standard Users read-only/no-delete
 echo Hardening directory permissions...

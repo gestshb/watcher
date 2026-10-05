@@ -3,17 +3,18 @@ package com.watcher.scheduler;
 import com.watcher.capture.ScreenCapture;
 import com.watcher.config.AppConfig;
 import com.watcher.security.SecurityAuditor;
-import com.watcher.storage.GoogleDriveUploader;
 import com.watcher.storage.LocalSpoolManager;
+import com.watcher.storage.S3Uploader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.concurrent.*;
 
 /**
- * Periodically captures screens, spools locally, and syncs to Google Drive.
+ * Periodically captures screens, spools locally, and syncs to S3 cloud storage.
  */
 public class CaptureScheduler {
     private static final Logger logger = LogManager.getLogger(CaptureScheduler.class);
@@ -21,28 +22,30 @@ public class CaptureScheduler {
     private final AppConfig config;
     private final ScreenCapture screenCapture;
     private final LocalSpoolManager spoolManager;
-    private final GoogleDriveUploader uploader;
+    private final S3Uploader uploader;
     private final SecurityAuditor auditor;
     private final ScheduledExecutorService scheduler;
 
     private volatile boolean isPaused = false;
-    private volatile long pauseUntilEpochMs = 0L;
+    private volatile long pauseUntilEpochMs = 0;
 
     public CaptureScheduler(AppConfig config,
                             ScreenCapture screenCapture,
                             LocalSpoolManager spoolManager,
-                            GoogleDriveUploader uploader,
+                            S3Uploader uploader,
                             SecurityAuditor auditor) {
         this.config = config;
         this.screenCapture = screenCapture;
         this.spoolManager = spoolManager;
         this.uploader = uploader;
         this.auditor = auditor;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "CaptureSchedulerWorker");
+
+        ThreadFactory threadFactory = runnable -> {
+            Thread t = new Thread(runnable, "capture-scheduler");
             t.setDaemon(true);
             return t;
-        });
+        };
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
     /**
@@ -87,25 +90,26 @@ public class CaptureScheduler {
     }
 
     /**
-     * Syncs all queued local files to Google Drive.
+     * Syncs all queued local files to S3.
      */
     public void syncPendingSpool() {
         if (uploader == null) {
+            logger.debug("S3 uploader is not configured. Retaining files locally in spool queue.");
             return;
         }
 
         try {
             List<Path> pending = spoolManager.getPendingFiles();
+            String todayStr = LocalDate.now().toString();
+
             for (Path file : pending) {
                 String filename = file.getFileName().toString();
-                String mimeType = filename.endsWith(".jpg") ? "image/jpeg" : "text/plain";
-
-                try {
-                    uploader.uploadFile(file, mimeType);
+                boolean success = uploader.uploadScreenshot(file, todayStr);
+                if (success) {
                     if (config.isDeleteAfterUpload()) {
                         spoolManager.deleteFile(file);
                     }
-                } catch (Exception uploadErr) {
+                } else {
                     logger.warn("Sync failed for {}. Will retry next cycle.", filename);
                     break; // stop trying subsequent files if network is failing
                 }
@@ -124,18 +128,15 @@ public class CaptureScheduler {
         auditor.recordEvent("PAUSED", "Monitoring paused by admin for " + minutes + " minutes.");
     }
 
-    /**
-     * Resumes capture loop immediately.
-     */
-    public void resume() {
-        this.isPaused = false;
-        this.pauseUntilEpochMs = 0L;
-        auditor.recordEvent("RESUMED", "Monitoring manually resumed by admin.");
+    public boolean isPaused() {
+        return isPaused && System.currentTimeMillis() < pauseUntilEpochMs;
     }
 
+    /**
+     * Gracefully terminates the scheduler.
+     */
     public void stop() {
         logger.info("Stopping CaptureScheduler...");
-        auditor.recordEvent("SERVICE_STOP", "Monitoring daemon stopped.");
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -145,9 +146,6 @@ public class CaptureScheduler {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
-    }
-
-    public boolean isPaused() {
-        return isPaused;
+        auditor.recordEvent("SERVICE_STOP", "Monitoring daemon stopped.");
     }
 }
