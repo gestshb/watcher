@@ -44,7 +44,7 @@ if not "%PROC_COUNT%"=="0" (
 echo Starting Watcher manually in background...
 echo JAR: %JAR_PATH%
 for %%F in ("%JAR_PATH%") do cd /d "%%~dpF"
-start "" "%JAVA_CMD%" -jar "%JAR_PATH%"
+start "" "%JAVA_CMD%" -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -jar "%JAR_PATH%"
 
 timeout /t 2 /nobreak >nul
 powershell -NoProfile -Command "$procs = Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'java' -and $_.CommandLine -like '*syshealthd.jar*' }; if ($procs) { Write-Host '=========================================='; Write-Host ' Watcher started successfully.'; Write-Host '=========================================='; $procs | Format-Table ProcessId, Name -AutoSize; exit 0 } else { Write-Host 'Error: Watcher failed to start.'; exit 1 }"

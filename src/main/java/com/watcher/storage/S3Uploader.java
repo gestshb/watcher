@@ -47,8 +47,8 @@ public class S3Uploader implements AutoCloseable {
         String secretKey = defaultSecretKey;
         String endpoint = defaultEndpoint;
 
-        Path credPath = Path.of(credentialsPath);
-        if (Files.exists(credPath)) {
+        Path credPath = resolveCredentialsPath(credentialsPath);
+        if (credPath != null && Files.exists(credPath)) {
             try (FileReader reader = new FileReader(credPath.toFile())) {
                 JsonObject json = JsonParser.parseReader(reader).getAsJsonObject();
                 if (json.has("bucket")) bucket = json.get("bucket").getAsString();
@@ -56,9 +56,12 @@ public class S3Uploader implements AutoCloseable {
                 if (json.has("accessKey")) accessKey = json.get("accessKey").getAsString();
                 if (json.has("secretKey")) secretKey = json.get("secretKey").getAsString();
                 if (json.has("endpoint")) endpoint = json.get("endpoint").getAsString();
+                logger.info("Loaded S3 credentials from [{}]", credPath.toAbsolutePath());
             } catch (Exception e) {
                 logger.warn("Could not fully parse credentials JSON, falling back to defaults: {}", e.getMessage());
             }
+        } else {
+            logger.warn("No credentials file found for path [{}]. Falling back to provided defaults.", credentialsPath);
         }
 
         this.bucketName = Objects.requireNonNull(bucket, "Bucket name must be configured");
@@ -111,6 +114,10 @@ public class S3Uploader implements AutoCloseable {
             logger.error("Failed to upload [{}] to S3: {}", filePath.getFileName(), e.getMessage());
             return false;
         }
+    }
+
+    public static Path resolveCredentialsPath(String configuredPath) {
+        return com.watcher.config.PathResolver.resolveCredentials(configuredPath);
     }
 
     public S3Client getS3Client() {

@@ -1,5 +1,6 @@
 package com.watcher.storage;
 
+import com.watcher.config.PathResolver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,11 +21,11 @@ public class LocalSpoolManager {
     private final long maxSizeBytes;
 
     public LocalSpoolManager(String spoolDirPath, long maxSizeBytes) {
-        this(Path.of(spoolDirPath), maxSizeBytes);
+        this(PathResolver.resolve(spoolDirPath), maxSizeBytes);
     }
 
     public LocalSpoolManager(Path spoolDir, long maxSizeBytes) {
-        this.spoolDir = spoolDir;
+        this.spoolDir = PathResolver.resolve(spoolDir);
         this.maxSizeBytes = maxSizeBytes;
         ensureDirectoryExists();
     }

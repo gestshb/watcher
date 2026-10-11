@@ -75,25 +75,30 @@ public class ViewerServer {
      * Helper method to list all available date prefixes from S3.
      */
     private List<String> listAvailableDates() {
-        ListObjectsV2Request req = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .delimiter("/")
-                .build();
-
-        ListObjectsV2Response res = s3Client.listObjectsV2(req);
         List<String> dates = new ArrayList<>();
-
-        if (res.commonPrefixes() != null) {
-            for (CommonPrefix cp : res.commonPrefixes()) {
-                String prefix = cp.prefix();
-                if (prefix.endsWith("/")) {
-                    prefix = prefix.substring(0, prefix.length() - 1);
-                }
-                if (prefix.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                    dates.add(prefix);
+        String continuationToken = null;
+        do {
+            ListObjectsV2Request.Builder reqB = ListObjectsV2Request.builder()
+                    .bucket(bucketName)
+                    .delimiter("/");
+            if (continuationToken != null) {
+                reqB.continuationToken(continuationToken);
+            }
+            ListObjectsV2Response res = s3Client.listObjectsV2(reqB.build());
+            if (res.commonPrefixes() != null) {
+                for (CommonPrefix cp : res.commonPrefixes()) {
+                    String prefix = cp.prefix();
+                    if (prefix.endsWith("/")) {
+                        prefix = prefix.substring(0, prefix.length() - 1);
+                    }
+                    if (prefix.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                        dates.add(prefix);
+                    }
                 }
             }
-        }
+            continuationToken = res.nextContinuationToken();
+        } while (continuationToken != null);
+
         dates.sort(Collections.reverseOrder());
         return dates;
     }
@@ -168,25 +173,56 @@ public class ViewerServer {
                 List<String> targetDates = filterDatesInRange(allDates, startDate, endDate);
 
                 Set<String> uniqueMachines = new HashSet<>();
+                List<String> datesToScan = (targetDates != null && !targetDates.isEmpty()) ? targetDates : allDates;
 
-                for (String d : targetDates) {
+                for (String d : datesToScan) {
                     String prefix = d + "/";
-                    ListObjectsV2Request req = ListObjectsV2Request.builder()
-                            .bucket(bucketName)
-                            .prefix(prefix)
-                            .delimiter("/")
-                            .build();
-
-                    ListObjectsV2Response res = s3Client.listObjectsV2(req);
-                    if (res.commonPrefixes() != null) {
-                        for (CommonPrefix cp : res.commonPrefixes()) {
-                            String full = cp.prefix();
-                            String relative = full.substring(prefix.length());
-                            if (relative.endsWith("/")) {
-                                relative = relative.substring(0, relative.length() - 1);
+                    String continuationToken = null;
+                    do {
+                        ListObjectsV2Request.Builder reqB = ListObjectsV2Request.builder()
+                                .bucket(bucketName)
+                                .prefix(prefix)
+                                .delimiter("/");
+                        if (continuationToken != null) {
+                            reqB.continuationToken(continuationToken);
+                        }
+                        ListObjectsV2Response res = s3Client.listObjectsV2(reqB.build());
+                        if (res.commonPrefixes() != null) {
+                            for (CommonPrefix cp : res.commonPrefixes()) {
+                                String full = cp.prefix();
+                                String relative = full.substring(prefix.length());
+                                if (relative.endsWith("/")) {
+                                    relative = relative.substring(0, relative.length() - 1);
+                                }
+                                if (!relative.isBlank()) {
+                                    uniqueMachines.add(relative);
+                                }
                             }
-                            if (!relative.isBlank()) {
-                                uniqueMachines.add(relative);
+                        }
+                        continuationToken = res.nextContinuationToken();
+                    } while (continuationToken != null);
+                }
+
+                // If still empty (e.g. range selected has no captures yet), fallback to scan allDates
+                if (uniqueMachines.isEmpty() && !allDates.isEmpty() && datesToScan != allDates) {
+                    for (String d : allDates) {
+                        String prefix = d + "/";
+                        ListObjectsV2Request req = ListObjectsV2Request.builder()
+                                .bucket(bucketName)
+                                .prefix(prefix)
+                                .delimiter("/")
+                                .build();
+                        ListObjectsV2Response res = s3Client.listObjectsV2(req);
+                        if (res.commonPrefixes() != null) {
+                            for (CommonPrefix cp : res.commonPrefixes()) {
+                                String full = cp.prefix();
+                                String relative = full.substring(prefix.length());
+                                if (relative.endsWith("/")) {
+                                    relative = relative.substring(0, relative.length() - 1);
+                                }
+                                if (!relative.isBlank()) {
+                                    uniqueMachines.add(relative);
+                                }
                             }
                         }
                     }

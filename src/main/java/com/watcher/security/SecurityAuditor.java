@@ -1,5 +1,6 @@
 package com.watcher.security;
 
+import com.watcher.config.PathResolver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,11 +21,11 @@ public class SecurityAuditor {
     private final Path auditLogPath;
 
     public SecurityAuditor(String logDirPath) {
-        this(Path.of(logDirPath).resolve("security_audit.log"));
+        this(PathResolver.resolve(logDirPath).resolve("security_audit.log"));
     }
 
     public SecurityAuditor(Path auditLogPath) {
-        this.auditLogPath = auditLogPath;
+        this.auditLogPath = PathResolver.resolve(auditLogPath);
         ensureDirectoryExists();
     }
 

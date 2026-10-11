@@ -23,6 +23,34 @@ if not exist "%JAR_FILE%" (
     )
 )
 
+:: Detect Java executable path
+set JAVA_BIN=
+where javaw >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "delims=" %%i in ('where javaw') do (
+        if not defined JAVA_BIN set "JAVA_BIN=%%i"
+    )
+) else (
+    where java >nul 2>&1
+    if %errorlevel% equ 0 (
+        for /f "delims=" %%i in ('where java') do (
+            if not defined JAVA_BIN set "JAVA_BIN=%%i"
+        )
+    )
+)
+if not defined JAVA_BIN (
+    if exist "%JAVA_HOME%\bin\javaw.exe" (
+        set "JAVA_BIN=%JAVA_HOME%\bin\javaw.exe"
+    ) else if exist "%JAVA_HOME%\bin\java.exe" (
+        set "JAVA_BIN=%JAVA_HOME%\bin\java.exe"
+    ) else (
+        echo Error: Java 17+ was not found in PATH or JAVA_HOME.
+        echo Please ensure Java 17+ is installed before running this installer.
+        exit /b 1
+    )
+)
+echo Detected Java runtime: %JAVA_BIN%
+
 set TARGET_DIR=C:\ProgramData\SystemHealth
 if not exist "%TARGET_DIR%" mkdir "%TARGET_DIR%"
 if not exist "%TARGET_DIR%\spool" mkdir "%TARGET_DIR%\spool"
@@ -50,14 +78,32 @@ if exist "%SCRIPT_DIR%tokens" (
     xcopy /E /I /Y "%SCRIPT_DIR%..\tokens" "%TARGET_DIR%\tokens" >nul
 )
 
-:: Lockdown permissions: SYSTEM & Administrators full access, Standard Users read-only/no-delete
-echo Hardening directory permissions...
-icacls "%TARGET_DIR%" /inheritance:r /grant:r "SYSTEM":(OI)(CI)F /grant:r "Administrators":(OI)(CI)F /grant:r "Users":(OI)(CI)RX
+:: Create batch wrapper for manual or service execution
+set WRAPPER_BAT=%TARGET_DIR%\run-service.bat
+echo Creating autostart batch wrapper at %WRAPPER_BAT%...
+(
+    echo @echo off
+    echo cd /d "%%~dp0"
+    echo start "" "%JAVA_BIN%" -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Duser.dir="%TARGET_DIR%" -Dwatcher.base.dir="%TARGET_DIR%" -Dwatcher.log.dir="%TARGET_DIR%\logs" -jar "%TARGET_DIR%\syshealthd.jar"
+) > "%WRAPPER_BAT%"
 
-:: Setup user logon autostart
-reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Run" /v "WinSystemHealth" /t REG_SZ /d "javaw -jar \"%TARGET_DIR%\syshealthd.jar\"" /f
+:: Lockdown permissions: SYSTEM & Administrators full access, Standard Users read-only/no-delete on root
+echo Hardening directory permissions...
+icacls "%TARGET_DIR%" /inheritance:r /grant:r "SYSTEM":(OI)(CI)F /grant:r "Administrators":(OI)(CI)F /grant:r "Users":(OI)(CI)RX >nul
+
+:: Grant Users modify permissions specifically on spool and logs folders
+:: This allows the daemon running in the interactive user desktop session to buffer frames and write logs
+icacls "%TARGET_DIR%\spool" /grant:r "Users":(OI)(CI)M >nul
+icacls "%TARGET_DIR%\logs" /grant:r "Users":(OI)(CI)M >nul
+
+:: Clean up any existing scheduled task that would conflict by running under Admin principal on standard user logon
+schtasks /delete /tn "WinSystemHealth" /f >nul 2>&1
+
+:: Setup user logon autostart for all interactive desktop sessions
+echo Configuring autostart at user logon...
+reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Run" /v "WinSystemHealth" /t REG_SZ /d "\"%JAVA_BIN%\" -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -Duser.dir=\"%TARGET_DIR%\" -Dwatcher.base.dir=\"%TARGET_DIR%\" -Dwatcher.log.dir=\"%TARGET_DIR%\logs\" -jar \"%TARGET_DIR%\syshealthd.jar\"" /f >nul
 
 echo ========================================================
 echo Watcher installed successfully!
-echo Service will launch at user logon.
+echo Service will launch automatically at user logon.
 echo ========================================================

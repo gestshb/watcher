@@ -4,6 +4,7 @@ import com.watcher.capture.ScreenCapture;
 import com.watcher.cli.AdminCli;
 import com.watcher.config.AppConfig;
 import com.watcher.config.ConfigManager;
+import com.watcher.config.PathResolver;
 import com.watcher.protection.ProcessGuard;
 import com.watcher.scheduler.CaptureScheduler;
 import com.watcher.scheduler.RetentionCleanerService;
@@ -25,6 +26,8 @@ public class App {
     private static final Logger logger = LogManager.getLogger(App.class);
 
     public static void main(String[] args) {
+        PathResolver.initSystemProperties();
+
         // If CLI flags are passed, delegate to Admin CLI
         if (args.length > 0 && (args[0].startsWith("-") || args[0].equals("admin"))) {
             java.util.List<String> cliArgs = new java.util.ArrayList<>();
@@ -39,10 +42,34 @@ public class App {
         }
 
         logger.info("Initializing Watcher Monitoring Daemon...");
-        SecurityAuditor auditor = new SecurityAuditor("./logs");
+        SecurityAuditor auditor = new SecurityAuditor(PathResolver.getLogsDir().toString());
+
+        // Single instance guard per OS user session to avoid duplicate daemons capturing concurrently
+        String currentUser = System.getProperty("user.name", "default").replaceAll("[^a-zA-Z0-9._-]", "_");
+        Path lockPath = PathResolver.getLogsDir().resolve(".daemon_" + currentUser + ".lock");
+        java.nio.channels.FileChannel lockChannel = null;
+        java.nio.channels.FileLock lock = null;
+        try {
+            if (lockPath.getParent() != null && !Files.exists(lockPath.getParent())) {
+                Files.createDirectories(lockPath.getParent());
+            }
+            lockChannel = java.nio.channels.FileChannel.open(
+                    lockPath,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.WRITE
+            );
+            lock = lockChannel.tryLock();
+            if (lock == null) {
+                logger.info("Another instance of Watcher is already running for user [{}]. Exiting gracefully.", currentUser);
+                System.exit(0);
+                return;
+            }
+        } catch (Exception e) {
+            logger.debug("Single-instance lock check note for user [{}]: {}", currentUser, e.getMessage());
+        }
 
         try {
-            Path configPath = Path.of("config.dat");
+            Path configPath = PathResolver.getConfigPath();
             ConfigManager configManager = new ConfigManager(configPath);
 
             AppConfig config;
@@ -90,11 +117,27 @@ public class App {
             RetentionCleanerService retentionService = new RetentionCleanerService(config, spoolManager, uploader, auditor);
             retentionService.start();
 
-            // Spawn Watchdog supervisor process
+            // Spawn Watchdog supervisor process or adopt existing watchdog
+            long watchdogPid = -1;
+            ProcessGuard guard = null;
             try {
                 String jarPath = ProcessGuard.getRunningJarPath();
-                ProcessGuard guard = new ProcessGuard(auditor, jarPath);
-                guard.launchWatchdog(ProcessHandle.current().pid());
+                guard = new ProcessGuard(auditor, jarPath);
+                String existingWatchdogProp = System.getProperty("watcher.watchdog.pid");
+                if (existingWatchdogProp != null && !existingWatchdogProp.isBlank()) {
+                    try {
+                        long candidatePid = Long.parseLong(existingWatchdogProp);
+                        if (guard.isProcessAlive(candidatePid)) {
+                            watchdogPid = candidatePid;
+                            logger.info("Adopted existing Watchdog supervisor PID: {}", watchdogPid);
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                if (watchdogPid <= 0) {
+                    Process watchdogProcess = guard.launchWatchdog(ProcessHandle.current().pid());
+                    watchdogPid = watchdogProcess.pid();
+                }
             } catch (Exception e) {
                 logger.warn("Could not spawn secondary watchdog process: {}", e.getMessage());
             }
@@ -106,9 +149,20 @@ public class App {
                 retentionService.stop();
             }));
 
-            // Keep daemon main thread alive
+            // Keep daemon main thread alive and mutually supervise watchdog
             while (!Thread.currentThread().isInterrupted()) {
-                Thread.sleep(60000);
+                Thread.sleep(3000);
+                if (guard != null && watchdogPid > 0 && !guard.isProcessAlive(watchdogPid)) {
+                    logger.warn("Watchdog PID {} died! Resurrecting watchdog supervisor...", watchdogPid);
+                    auditor.recordEvent("TAMPER_DETECTED", "Watchdog PID " + watchdogPid + " died! Resurrecting.");
+                    try {
+                        Process newWatchdog = guard.launchWatchdog(ProcessHandle.current().pid());
+                        watchdogPid = newWatchdog.pid();
+                        logger.info("New watchdog supervisor running under PID: {}", watchdogPid);
+                    } catch (Exception e) {
+                        logger.error("Failed to resurrect watchdog supervisor", e);
+                    }
+                }
             }
 
         } catch (Exception e) {

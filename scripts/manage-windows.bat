@@ -58,7 +58,7 @@ if not "%PROC_COUNT%"=="0" (
 echo Starting Watcher manually in background...
 echo Using JAR: %JAR_PATH%
 for %%F in ("%JAR_PATH%") do cd /d "%%~dpF"
-start "" "%JAVA_CMD%" -jar "%JAR_PATH%"
+start "" "%JAVA_CMD%" -Dsun.java2d.d3d=false -Dsun.java2d.noddraw=true -jar "%JAR_PATH%"
 
 timeout /t 2 /nobreak >nul
 goto do_status

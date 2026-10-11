@@ -1,5 +1,6 @@
 package com.watcher.protection;
 
+import com.watcher.config.PathResolver;
 import com.watcher.security.SecurityAuditor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,10 +43,15 @@ public class ProcessGuard {
         String javaBin = ProcessHandle.current().info().command().orElse("java");
         ProcessBuilder pb = new ProcessBuilder(
                 javaBin,
+                "-Dsun.java2d.d3d=false",
+                "-Dsun.java2d.noddraw=true",
+                "-Dwatcher.base.dir=" + PathResolver.getBaseDir().toAbsolutePath(),
+                "-Dwatcher.log.dir=" + PathResolver.getLogsDir().toAbsolutePath(),
                 "-cp", jarPath,
                 "com.watcher.protection.Watchdog",
                 String.valueOf(parentPid)
         );
+        pb.directory(PathResolver.getBaseDir().toFile());
         pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         pb.redirectError(ProcessBuilder.Redirect.DISCARD);
         Process p = pb.start();
@@ -63,8 +69,14 @@ public class ProcessGuard {
         String javaBin = ProcessHandle.current().info().command().orElse("java");
         ProcessBuilder pb = new ProcessBuilder(
                 javaBin,
+                "-Dsun.java2d.d3d=false",
+                "-Dsun.java2d.noddraw=true",
+                "-Dwatcher.watchdog.pid=" + ProcessHandle.current().pid(),
+                "-Dwatcher.base.dir=" + PathResolver.getBaseDir().toAbsolutePath(),
+                "-Dwatcher.log.dir=" + PathResolver.getLogsDir().toAbsolutePath(),
                 "-jar", jarPath
         );
+        pb.directory(PathResolver.getBaseDir().toFile());
         pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
         pb.redirectError(ProcessBuilder.Redirect.DISCARD);
         Process p = pb.start();

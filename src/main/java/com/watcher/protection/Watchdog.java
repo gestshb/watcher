@@ -1,5 +1,6 @@
 package com.watcher.protection;
 
+import com.watcher.config.PathResolver;
 import com.watcher.security.SecurityAuditor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,6 +13,7 @@ public class Watchdog {
     private static final int CHECK_INTERVAL_MS = 3000;
 
     public static void main(String[] args) {
+        PathResolver.initSystemProperties();
         if (args.length < 1) {
             System.err.println("Usage: Watchdog <main-process-pid>");
             System.exit(1);
@@ -19,7 +21,7 @@ public class Watchdog {
 
         long targetPid = Long.parseLong(args[0]);
         String jarPath = ProcessGuard.getRunningJarPath();
-        SecurityAuditor auditor = new SecurityAuditor("./logs");
+        SecurityAuditor auditor = new SecurityAuditor(PathResolver.getLogsDir().toString());
         ProcessGuard guard = new ProcessGuard(auditor, jarPath);
 
         logger.info("Watchdog started. Monitoring PID: {}", targetPid);

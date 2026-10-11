@@ -592,6 +592,13 @@
             </div>
 
             <div class="controls">
+                <!-- Quick Date Presets -->
+                <div class="control-group" style="padding: 0.2rem 0.4rem; gap: 0.3rem;">
+                    <button class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.78rem;" onclick="setPreset('today')">📅 اليوم</button>
+                    <button class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.78rem;" onclick="setPreset('newest')">🕒 أحدث يوم</button>
+                    <button class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.78rem;" onclick="setPreset('all')">🗓️ الكل</button>
+                </div>
+
                 <!-- Start Date -->
                 <div class="control-group">
                     <span class="control-label">من:</span>
@@ -700,6 +707,15 @@
         let currentScreenshots = [];
         let selectedKeys = new Set();
         let currentIndex = -1;
+        let availableDates = [];
+
+        function getLocalDateString() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
         async function init() {
             await loadDatesAndInitRange();
@@ -709,15 +725,17 @@
             try {
                 const res = await fetch('/api/dates');
                 if (!res.ok) throw new Error('فشل جلب قائمة التواريخ');
-                const dates = await res.json();
+                availableDates = await res.json();
 
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = getLocalDateString();
 
-                if (dates.length > 0) {
-                    // Default range: newest date to newest date (or today)
-                    const newest = dates[0];
-                    document.getElementById('startDate').value = newest;
-                    document.getElementById('endDate').value = newest;
+                if (availableDates.includes(todayStr)) {
+                    document.getElementById('startDate').value = todayStr;
+                    document.getElementById('endDate').value = todayStr;
+                } else if (availableDates.length > 0) {
+                    // Default to today so user immediately sees today's status, or user can jump to newest
+                    document.getElementById('startDate').value = todayStr;
+                    document.getElementById('endDate').value = todayStr;
                 } else {
                     document.getElementById('startDate').value = todayStr;
                     document.getElementById('endDate').value = todayStr;
@@ -730,13 +748,37 @@
             }
         }
 
+        async function setPreset(preset) {
+            const todayStr = getLocalDateString();
+            if (preset === 'today') {
+                document.getElementById('startDate').value = todayStr;
+                document.getElementById('endDate').value = todayStr;
+            } else if (preset === 'newest') {
+                if (availableDates.length > 0) {
+                    document.getElementById('startDate').value = availableDates[0];
+                    document.getElementById('endDate').value = availableDates[0];
+                } else {
+                    document.getElementById('startDate').value = todayStr;
+                    document.getElementById('endDate').value = todayStr;
+                }
+            } else if (preset === 'all') {
+                if (availableDates.length > 0) {
+                    document.getElementById('startDate').value = availableDates[availableDates.length - 1];
+                    document.getElementById('endDate').value = todayStr;
+                } else {
+                    document.getElementById('startDate').value = '';
+                    document.getElementById('endDate').value = '';
+                }
+            }
+            await onDateRangeChanged();
+        }
+
         async function onDateRangeChanged() {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
 
             const machineSelect = document.getElementById('machineSelect');
             const prevSelectedMachine = machineSelect.value;
-            machineSelect.innerHTML = '<option value="ALL">كافة الأجهزة</option>';
 
             try {
                 let url = '/api/machines';
@@ -748,10 +790,11 @@
                 const res = await fetch(url);
                 if (res.ok) {
                     const machines = await res.json();
+                    machineSelect.innerHTML = '<option value="ALL">كافة الأجهزة</option>';
                     machines.forEach(m => {
                         const opt = document.createElement('option');
                         opt.value = m;
-                        opt.textContent = m;
+                        opt.textContent = '🖥️ ' + m;
                         if (m === prevSelectedMachine) opt.selected = true;
                         machineSelect.appendChild(opt);
                     });
@@ -798,7 +841,18 @@
             countBadge.textContent = items.length;
 
             if (items.length === 0) {
-                showEmpty('لم يتم العثور على أي لقطات شاشة في النطاق المحدد.');
+                const todayStr = getLocalDateString();
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+
+                let msg = 'لم يتم العثور على أي لقطات شاشة في النطاق المحدد.';
+                if (startDate === todayStr && endDate === todayStr) {
+                    msg = `لا توجد لقطات شاشة مسجلة لتاريخ اليوم (${todayStr}) حتى الآن.`;
+                    if (availableDates.length > 0 && availableDates[0] !== todayStr) {
+                        msg += `<br><button class="btn btn-outline" style="margin-top:0.75rem;" onclick="setPreset('newest')">عرض لقطات أحدث تاريخ متاح (${availableDates[0]})</button>`;
+                    }
+                }
+                showEmpty(msg);
                 return;
             }
 
@@ -806,6 +860,7 @@
 
             items.forEach((item, index) => {
                 const meta = parseFilename(item.filename);
+                const displayMachine = (meta.machine && meta.machine !== 'الجهاز') ? meta.machine : (item.machine || 'الجهاز');
 
                 const card = document.createElement('div');
                 card.className = 'card' + (selectedKeys.has(item.key) ? ' selected' : '');
@@ -818,7 +873,7 @@
                     </div>
                     <div class="card-thumb-wrapper" onclick="openLightbox(${index})">
                         <img class="card-thumb" src="/api/image?key=${encodeURIComponent(item.key)}" loading="lazy" alt="${item.filename}">
-                        <div class="badge-machine">💻 ${escapeHtml(item.machine || meta.machine)}</div>
+                        <div class="badge-machine">💻 ${escapeHtml(displayMachine)}</div>
                         <div class="badge-date">📅 ${escapeHtml(item.date || meta.date)}</div>
                         <div class="badge-display">📺 شاشة ${escapeHtml(meta.display)}</div>
                     </div>
@@ -1005,7 +1060,7 @@
             document.getElementById('loadingState').style.display = 'none';
             document.getElementById('galleryGrid').style.display = 'none';
             const emptyDiv = document.getElementById('emptyState');
-            if (msg) document.getElementById('emptyMessage').textContent = msg;
+            if (msg) document.getElementById('emptyMessage').innerHTML = msg;
             emptyDiv.style.display = 'flex';
             document.getElementById('itemCount').textContent = '0';
         }

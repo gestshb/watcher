@@ -81,6 +81,23 @@ public class ScreenCapture {
             Robot robot = new Robot(screen);
 
             BufferedImage screenImage = robot.createScreenCapture(bounds);
+            if (isBlackFrame(screenImage)) {
+                // Fallback to default desktop Robot in case device-specific Robot had coordinate offset issues
+                try {
+                    Robot fallbackRobot = new Robot();
+                    BufferedImage fallbackImage = fallbackRobot.createScreenCapture(bounds);
+                    if (!isBlackFrame(fallbackImage)) {
+                        screenImage = fallbackImage;
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+
+            if (isBlackFrame(screenImage)) {
+                logger.info("Display {} returned a pure black frame (session locked, asleep, or inactive). Skipping capture.", i);
+                continue;
+            }
+
             byte[] jpegBytes = ImageCompressor.compressToJpeg(screenImage, quality);
 
             String filename = String.format("screenshot_%s_%s_disp%d.jpg", hostname, timestampStr, i);
@@ -89,6 +106,37 @@ public class ScreenCapture {
         }
 
         return frames;
+    }
+
+    /**
+     * Checks whether the captured image is completely black (e.g. locked session, disconnected desktop, or display off).
+     */
+    public static boolean isBlackFrame(BufferedImage image) {
+        if (image == null) {
+            return true;
+        }
+        int width = image.getWidth();
+        int height = image.getHeight();
+        if (width <= 0 || height <= 0) {
+            return true;
+        }
+
+        int stepX = Math.max(1, width / 50);
+        int stepY = Math.max(1, height / 50);
+        int brightnessThreshold = 12;
+
+        for (int x = 0; x < width; x += stepX) {
+            for (int y = 0; y < height; y += stepY) {
+                int rgb = image.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                if (r > brightnessThreshold || g > brightnessThreshold || b > brightnessThreshold) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public String getHostname() {

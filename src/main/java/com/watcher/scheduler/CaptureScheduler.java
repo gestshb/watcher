@@ -77,6 +77,9 @@ public class CaptureScheduler {
         try {
             // 1. Capture screen(s)
             List<ScreenCapture.CapturedFrame> frames = screenCapture.captureAllDisplays(config.getImageQuality());
+            if (frames.isEmpty()) {
+                logger.debug("No active displays captured (display may be locked, asleep, or headless).");
+            }
             for (ScreenCapture.CapturedFrame frame : frames) {
                 spoolManager.saveFrame(frame.getFilename(), frame.getJpegData());
             }

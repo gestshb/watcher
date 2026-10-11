@@ -1,5 +1,6 @@
 package com.watcher.protection;
 
+import com.watcher.config.PathResolver;
 import com.watcher.security.SecurityAuditor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,7 +19,8 @@ public class SystemSupervisor {
     private static final int SUPERVISOR_LOOP_INTERVAL_MS = 10000;
 
     public static void main(String[] args) {
-        SecurityAuditor auditor = new SecurityAuditor("./logs");
+        PathResolver.initSystemProperties();
+        SecurityAuditor auditor = new SecurityAuditor(PathResolver.getLogsDir().toString());
         logger.info("SystemSupervisor (Tier 1) active.");
         auditor.recordEvent("SUPERVISOR_START", "Tier-1 System Supervisor initiated.");
 

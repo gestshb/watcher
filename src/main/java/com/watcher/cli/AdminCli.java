@@ -3,6 +3,7 @@ package com.watcher.cli;
 import com.watcher.config.AppConfig;
 import com.watcher.config.ConfigEncryptor;
 import com.watcher.config.ConfigManager;
+import com.watcher.config.PathResolver;
 import com.watcher.storage.LocalSpoolManager;
 import com.watcher.storage.S3Uploader;
 import com.watcher.viewer.ViewerServer;
@@ -61,8 +62,12 @@ public class AdminCli implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        PathResolver.initSystemProperties();
         try {
-            Path configPath = Path.of("config.dat");
+            Path configPath = PathResolver.getConfigPath();
+            if (!Files.exists(configPath) && Files.exists(Path.of("config.dat"))) {
+                configPath = Path.of("config.dat");
+            }
             ConfigManager configManager = new ConfigManager(configPath);
 
             AppConfig config;

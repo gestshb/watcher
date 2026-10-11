@@ -20,7 +20,7 @@ public class ConfigManager {
     private final Path configPath;
 
     public ConfigManager() {
-        this(Path.of(DEFAULT_CONFIG_FILE));
+        this(PathResolver.getConfigPath());
     }
 
     public ConfigManager(Path configPath) {
